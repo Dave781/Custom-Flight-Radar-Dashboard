@@ -538,6 +538,42 @@
             }
         }
 
+        /* 800x480 Pi touchscreen kiosk — no scroll, everything visible */
+        @media (max-height: 520px) {
+            body { overflow: hidden; }
+            body::before { display: none; }
+            .container { padding: 4px; max-height: 100vh; overflow: hidden; }
+            .header { padding: 4px 8px; margin-bottom: 4px; }
+            .logo { font-size: 0.85rem; }
+            .header-left { gap: 6px; }
+            .header-right { gap: 5px; }
+            .header-stat .value { font-size: 0.75rem; }
+            .header-stat .label { font-size: 0.5rem; }
+            .status-badge { padding: 2px 5px; font-size: 0.55rem; }
+            .threshold-control label { font-size: 0.55rem; }
+            .threshold-value { font-size: 0.65rem; }
+            #radar-toggle-btn { padding: 2px 6px; font-size: 0.6rem; }
+            #daynight-toggle { font-size: 0.9rem; padding: 1px 4px; }
+            .main-grid { gap: 4px; grid-template-columns: 1fr 220px; }
+            .featured-panel .panel-header,
+            .aircraft-list-panel .panel-header { padding: 3px 8px; }
+            .panel-title { font-size: 0.6rem; }
+            .featured-callsign { font-size: 1.3rem; margin-bottom: 0; }
+            .featured-airline { font-size: 0.65rem; margin-bottom: 2px; }
+            .stat-grid { gap: 3px; }
+            .stat-box { padding: 3px 5px; }
+            .stat-box .value { font-size: 0.8rem; }
+            .stat-box .label { font-size: 0.45rem; }
+            /* Hide detail grid on small screen — keep only stat boxes */
+            .aircraft-details { display: none; }
+            .contacts-column { max-height: calc(100vh - 44px); overflow-y: auto; }
+            .aircraft-item { padding: 3px 6px; }
+            .aircraft-item .callsign { font-size: 0.7rem; }
+            .aircraft-item .metrics { font-size: 0.55rem; gap: 3px; }
+            .footer { display: none; }
+            .radar-modal-box { width: min(95vw, 400px); }
+        }
+
         /* Bearing in detail panel */
         .bearing-display {
             display: flex;
@@ -1171,49 +1207,260 @@
                 ctx.fillText(label, lx, ly);
             });
 
-            // Coastline — simplified Puget Sound shoreline segments
+            // Coastline — simplified Puget Sound shoreline, lakes, and islands
             // Each sub-array is a polyline of [lat, lon] points
+            // Coordinates sourced from OpenStreetMap/NOAA reference points
             const COASTLINE = [
-                // East shore of Puget Sound (Seattle waterfront up through Shoreline)
-                [[47.495, -122.370], [47.520, -122.360], [47.545, -122.345],
-                 [47.560, -122.350], [47.580, -122.355], [47.600, -122.370],
-                 [47.615, -122.380], [47.620, -122.375], [47.630, -122.370],
-                 [47.645, -122.365], [47.660, -122.370], [47.680, -122.380],
-                 [47.700, -122.370], [47.720, -122.365], [47.740, -122.355],
-                 [47.760, -122.345], [47.780, -122.340], [47.800, -122.350]],
-                // West shore — Bainbridge/Kitsap Peninsula eastern coast
-                [[47.500, -122.510], [47.530, -122.520], [47.560, -122.530],
-                 [47.580, -122.525], [47.600, -122.520], [47.620, -122.515],
-                 [47.640, -122.510], [47.660, -122.505], [47.680, -122.500],
-                 [47.700, -122.495], [47.720, -122.490], [47.740, -122.485],
-                 [47.760, -122.480], [47.780, -122.475], [47.800, -122.470]],
-                // Lake Washington west shore
-                [[47.510, -122.265], [47.530, -122.260], [47.555, -122.255],
-                 [47.575, -122.260], [47.600, -122.265], [47.620, -122.270],
-                 [47.640, -122.275], [47.660, -122.280], [47.680, -122.275],
-                 [47.700, -122.265], [47.720, -122.255], [47.735, -122.250]],
-                // Lake Washington east shore
-                [[47.510, -122.220], [47.530, -122.215], [47.555, -122.210],
-                 [47.575, -122.205], [47.600, -122.200], [47.620, -122.200],
-                 [47.640, -122.205], [47.660, -122.210], [47.680, -122.215],
-                 [47.700, -122.210], [47.720, -122.205], [47.735, -122.200]],
+                // === PUGET SOUND EAST SHORE (Seattle side, S to N) ===
+                // From south of Alki up through Carkeek/Shoreline/Edmonds
+                [[47.520, -122.393],  // south of Alki (Fauntleroy)
+                 [47.535, -122.400],  // Lincoln Park area
+                 [47.553, -122.407],  // Brace Point
+                 [47.564, -122.413],  // Me-Kwa-Mooks
+                 [47.576, -122.421],  // Alki Point (lighthouse)
+                 [47.581, -122.410],  // Alki Beach
+                 [47.587, -122.397],  // north Alki
+                 [47.595, -122.387],  // Duwamish Head
+                 [47.598, -122.383],  // south Elliott Bay waterfront
+                 [47.602, -122.370],  // Harbor Island / Pier 18
+                 [47.606, -122.343],  // Pioneer Square waterfront
+                 [47.608, -122.340],  // Coleman Dock / ferry terminal
+                 [47.611, -122.342],  // Pier 56-59 (aquarium)
+                 [47.615, -122.348],  // Pier 62-66
+                 [47.620, -122.355],  // Pier 70
+                 [47.625, -122.363],  // Olympic Sculpture Park / Myrtle Edwards
+                 [47.630, -122.375],  // Smith Cove south (Pier 86 grain)
+                 [47.633, -122.380],  // Smith Cove / Pier 91
+                 [47.637, -122.391],  // Smith Cove north / Interbay
+                 [47.643, -122.402],  // south Magnolia
+                 [47.650, -122.410],  // Magnolia Bluff mid
+                 [47.655, -122.420],  // Magnolia Bluff west
+                 [47.662, -122.436],  // West Point (lighthouse / Discovery Park)
+                 [47.668, -122.430],  // north of West Point
+                 [47.674, -122.420],  // Shilshole Bay south
+                 [47.678, -122.420],  // Shilshole Bay marina
+                 [47.685, -122.413],  // Golden Gardens
+                 [47.694, -122.406],  // Meadow Point (Carkeek Park)
+                 [47.712, -122.400],  // Carkeek Park north
+                 [47.726, -122.396],  // Richmond Beach area
+                 [47.740, -122.393],  // south Edmonds
+                 [47.760, -122.390],  // Edmonds waterfront south
+                 [47.776, -122.385],  // Edmonds ferry terminal area
+                 [47.795, -122.383]], // north Edmonds / Meadowdale
+
+                // === PUGET SOUND EAST SHORE — inner Elliott Bay bulkhead ===
+                // The industrial inner harbor / Duwamish Waterway entrance
+                [[47.595, -122.387],  // Duwamish Head
+                 [47.591, -122.375],  // Harbor Ave SW
+                 [47.583, -122.365],  // west Duwamish Waterway
+                 [47.574, -122.352],  // Kellogg Island area
+                 [47.569, -122.345],  // South Park Bridge area
+                 [47.572, -122.340],  // east bank
+                 [47.580, -122.347],  // east Duwamish industrial
+                 [47.590, -122.343],  // Harbor Island east
+                 [47.600, -122.347],  // Pier 18 area
+                 [47.602, -122.370]], // reconnect to Harbor Island / Pier 18
+
+                // === KITSAP PENINSULA EAST SHORE (west side of Puget Sound) ===
+                // From south (Manchester/Port Orchard) up through Suquamish to Kingston
+                [[47.530, -122.530],  // Manchester area
+                 [47.545, -122.525],  // north Manchester
+                 [47.558, -122.520],  // south of Rich Passage
+                 [47.570, -122.516],  // Point Glover
+                 [47.580, -122.510],  // Illahee area
+                 [47.598, -122.530],  // Brownsville
+                 [47.620, -122.545],  // Keyport area
+                 [47.640, -122.548],  // north Keyport
+                 [47.660, -122.553],  // Poulsbo area
+                 [47.680, -122.540],  // Lemolo
+                 [47.700, -122.535],  // south of Indianola
+                 [47.715, -122.525],  // Indianola
+                 [47.730, -122.520],  // Miller Bay area
+                 [47.755, -122.510],  // south Suquamish
+                 [47.770, -122.505],  // Suquamish
+                 [47.785, -122.500],  // south Appletree Cove
+                 [47.797, -122.497]], // Kingston ferry terminal
+
+                // === BAINBRIDGE ISLAND (clockwise from Restoration Point) ===
+                [[47.584, -122.479],  // Restoration Point (south tip)
+                 [47.588, -122.498],  // south shore west of Restoration Pt
+                 [47.590, -122.510],  // Blakely Harbor south
+                 [47.594, -122.524],  // Blakely Harbor west
+                 [47.600, -122.540],  // Crystal Springs
+                 [47.605, -122.550],  // Point White
+                 [47.612, -122.558],  // SW Bainbridge
+                 [47.625, -122.563],  // west shore mid-south
+                 [47.640, -122.568],  // west shore mid
+                 [47.655, -122.565],  // Battle Point area
+                 [47.665, -122.558],  // west shore north of Battle Point
+                 [47.678, -122.548],  // NW shore
+                 [47.690, -122.535],  // north Bainbridge west
+                 [47.700, -122.522],  // north shore
+                 [47.705, -122.506],  // Point Monroe (north tip)
+                 [47.698, -122.495],  // NE shore south of Pt Monroe
+                 [47.688, -122.489],  // Fay Bainbridge area
+                 [47.675, -122.486],  // NE shore mid
+                 [47.660, -122.488],  // Yeomalt Point area
+                 [47.648, -122.490],  // Rolling Bay
+                 [47.635, -122.493],  // east shore mid
+                 [47.625, -122.492],  // Wing Point north (Eagle Harbor north)
+                 [47.618, -122.496],  // Eagle Harbor entrance north
+                 [47.613, -122.510],  // Eagle Harbor inner west
+                 [47.610, -122.510],  // Eagle Harbor inner south
+                 [47.612, -122.498],  // Eagle Harbor entrance south
+                 [47.608, -122.490],  // Winslow ferry area
+                 [47.600, -122.487],  // south of Eagle Harbor
+                 [47.592, -122.482],  // Bean Point area
+                 [47.584, -122.479]], // Restoration Point (close loop)
+
+                // === LAKE WASHINGTON (full loop: west shore N, east shore S, closed) ===
+                [[47.505, -122.210],  // Renton south (Gene Coulon Park area)
+                 [47.512, -122.219],  // Renton north / Kennydale
+                 [47.520, -122.232],  // SW Lake Washington
+                 [47.528, -122.250],  // Rainier Beach
+                 [47.535, -122.259],  // Pritchard Island
+                 [47.543, -122.265],  // Beer Sheva Park
+                 [47.550, -122.268],  // Seward Park south
+                 [47.555, -122.273],  // Seward Park (peninsula tip is east)
+                 [47.560, -122.268],  // Seward Park north
+                 [47.570, -122.272],  // Genesee Park
+                 [47.580, -122.278],  // Mount Baker beach
+                 [47.587, -122.282],  // Leschi
+                 [47.595, -122.282],  // Leschi north
+                 [47.603, -122.280],  // Madrona Park
+                 [47.611, -122.278],  // Denny-Blaine
+                 [47.620, -122.277],  // Madison Park
+                 [47.632, -122.277],  // Broadmoor (Washington Park Arboretum)
+                 [47.640, -122.275],  // Union Bay south / 520 bridge area
+                 [47.650, -122.272],  // Union Bay / University Village area
+                 [47.656, -122.270],  // University Village east
+                 [47.666, -122.265],  // Laurelhurst
+                 [47.676, -122.253],  // Sand Point / Magnuson Park
+                 [47.685, -122.258],  // Sand Point north
+                 [47.696, -122.270],  // Matthews Beach
+                 [47.710, -122.275],  // Lake Forest Park south
+                 [47.725, -122.275],  // Lake Forest Park
+                 [47.740, -122.265],  // Kenmore south
+                 [47.750, -122.253],  // Kenmore / Log Boom Park
+                 [47.757, -122.244],  // north end of Lake Washington
+                 // --- east shore (Kirkland/Bellevue side, N to S) ---
+                 [47.750, -122.232],  // Bothell / north end east
+                 [47.740, -122.220],  // Blyth Park area
+                 [47.730, -122.212],  // Juanita Bay north
+                 [47.722, -122.208],  // Juanita Beach
+                 [47.715, -122.213],  // Juanita Bay inner
+                 [47.708, -122.205],  // Juanita Bay south
+                 [47.698, -122.202],  // Kirkland - Houghton Beach
+                 [47.686, -122.200],  // Kirkland - Marsh Park
+                 [47.680, -122.206],  // Kirkland - Marina Park
+                 [47.672, -122.200],  // Carillon Point / Yarrow Bay north
+                 [47.662, -122.205],  // Yarrow Point
+                 [47.653, -122.208],  // Hunts Point
+                 [47.645, -122.215],  // Evergreen Point (520 bridge east)
+                 [47.635, -122.210],  // Medina
+                 [47.625, -122.208],  // Clyde Beach / Meydenbauer Bay north
+                 [47.618, -122.205],  // Meydenbauer Bay
+                 [47.610, -122.200],  // Bellevue downtown waterfront
+                 [47.600, -122.195],  // Enatai
+                 [47.590, -122.193],  // Beaux Arts Village
+                 [47.580, -122.196],  // south Bellevue
+                 [47.568, -122.202],  // Newcastle Beach
+                 [47.555, -122.198],  // May Creek area
+                 [47.540, -122.197],  // Kennydale east
+                 [47.525, -122.200],  // east of Renton
+                 [47.512, -122.205],  // south end east
+                 [47.505, -122.210]], // Renton south (close loop)
+
+                // === MERCER ISLAND (clockwise from north tip) ===
+                [[47.594, -122.225],  // north tip (I-90 bridge)
+                 [47.590, -122.216],  // NE shore
+                 [47.582, -122.212],  // east shore north
+                 [47.572, -122.209],  // east shore mid
+                 [47.562, -122.212],  // SE shore
+                 [47.550, -122.218],  // south tip area
+                 [47.545, -122.225],  // south tip
+                 [47.548, -122.233],  // SW shore
+                 [47.558, -122.238],  // west shore south
+                 [47.568, -122.240],  // west shore mid
+                 [47.578, -122.237],  // west shore north
+                 [47.587, -122.232],  // NW shore
+                 [47.594, -122.225]], // north tip (close loop)
+
+                // === LAKE UNION (clockwise from south / south end) ===
+                [[47.626, -122.338],  // south end (south Lake Union / MOHAI)
+                 [47.627, -122.343],  // SW shore (west of Fairview)
+                 [47.630, -122.348],  // Westlake Ave area
+                 [47.635, -122.350],  // west shore (Westlake)
+                 [47.640, -122.348],  // west shore mid
+                 [47.645, -122.347],  // Fremont / north end west
+                 [47.649, -122.345],  // Fremont Cut west
+                 [47.651, -122.340],  // north shore (Gas Works Park west)
+                 [47.651, -122.335],  // Gas Works Park
+                 [47.650, -122.330],  // Gas Works Park east
+                 [47.647, -122.326],  // Eastlake north
+                 [47.643, -122.325],  // Eastlake mid
+                 [47.638, -122.326],  // east shore mid
+                 [47.633, -122.328],  // east shore south (Fairview Ave)
+                 [47.629, -122.331],  // SE corner (Fairview/Yale)
+                 [47.626, -122.338]], // south end (close loop)
+
+                // === SHIP CANAL (Fremont Cut / Lake Washington Ship Canal) ===
+                // North bank, Fremont to Ballard Locks
+                [[47.650, -122.335],  // Fremont Cut east (Gas Works)
+                 [47.651, -122.345],  // Fremont Cut west
+                 [47.655, -122.355],  // Fremont Bridge
+                 [47.658, -122.372],  // Ballard Bridge area
+                 [47.660, -122.385],  // Salmon Bay east
+                 [47.665, -122.395],  // Salmon Bay mid
+                 [47.668, -122.402],  // Hiram M Chittenden Locks
+                 [47.672, -122.410]], // Shilshole Bay
+
+                // === PORTAGE BAY / UNION BAY (connecting Lake Union to Lake Washington) ===
+                [[47.643, -122.325],  // Eastlake / Portage Bay west
+                 [47.645, -122.320],  // Portage Bay mid
+                 [47.645, -122.314],  // I-5 / University Bridge area
+                 [47.647, -122.310],  // Portage Bay east
+                 [47.650, -122.305],  // Montlake Cut west
+                 [47.650, -122.295],  // Montlake Cut east
+                 [47.651, -122.285],  // Union Bay west
+                 [47.650, -122.272]], // Union Bay / University Village
+
+                // === SEWARD PARK PENINSULA (juts east into Lake Washington) ===
+                [[47.555, -122.273],  // Seward Park base north
+                 [47.550, -122.268],  // peninsula mid
+                 [47.548, -122.258],  // Andrews Bay / tip area
+                 [47.552, -122.253],  // east side of peninsula
+                 [47.557, -122.260],  // north east
+                 [47.560, -122.268]], // rejoin west shore
             ];
 
-            ctx.strokeStyle = 'rgba(0,150,200,0.3)';
-            ctx.lineWidth = 1.5;
             ctx.lineJoin = 'round';
-            COASTLINE.forEach(segment => {
+
+            // Identify closed-loop segments (first point == last point) for water fill
+            COASTLINE.forEach((segment, idx) => {
+                if (segment.length < 3) return;
+                const first = segment[0], last = segment[segment.length - 1];
+                const isClosed = (Math.abs(first[0] - last[0]) < 0.001 &&
+                                  Math.abs(first[1] - last[1]) < 0.001);
+
                 ctx.beginPath();
                 segment.forEach((pt, j) => {
                     const p = latLonToCanvas(pt[0], pt[1], cx, cy, scale);
                     if (j === 0) ctx.moveTo(p.x, p.y);
                     else ctx.lineTo(p.x, p.y);
                 });
+
+                // Fill closed water bodies with subtle blue
+                if (isClosed) {
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(0,80,140,0.10)';
+                    ctx.fill();
+                }
+
+                ctx.strokeStyle = 'rgba(0,150,200,0.35)';
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
             });
-
-            // Fill water areas with subtle blue between shore pairs
-            ctx.fillStyle = 'rgba(0,80,140,0.08)';
 
             // Antenna centre dot
             ctx.beginPath();
