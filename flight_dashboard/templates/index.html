@@ -581,16 +581,6 @@
             gap: 8px;
         }
 
-        .bearing-deg {
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: #fff;
-        }
-
-        .bearing-card {
-            font-size: 0.75rem;
-            color: var(--secondary);
-        }
 
         /* Bearing column in list */
         .bearing-tag {
@@ -1213,18 +1203,23 @@
             const COASTLINE = [
                 // === PUGET SOUND EAST SHORE (Seattle side, S to N) ===
                 // From south of Alki up through Carkeek/Shoreline/Edmonds
-                [[47.520, -122.393],  // south of Alki (Fauntleroy)
-                 [47.535, -122.400],  // Lincoln Park area
-                 [47.553, -122.407],  // Brace Point
-                 [47.564, -122.413],  // Me-Kwa-Mooks
-                 [47.576, -122.421],  // Alki Point (lighthouse)
-                 [47.581, -122.410],  // Alki Beach
+                // Coordinates verified against OpenStreetMap coastline + cape/point nodes
+                [[47.517, -122.399],  // Brace Point (south end, OSM: 47.5172,-122.3991)
+                 [47.523, -122.397],  // Fauntleroy ferry area (OSM: 47.5232,-122.3965)
+                 [47.530, -122.402],  // Point Williams / Lincoln Park (OSM: 47.5304,-122.4016)
+                 [47.542, -122.401],  // Lincoln Park north
+                 [47.557, -122.401],  // Me-Kwa-Mooks (from coastline way ~47.556,-122.401)
+                 [47.565, -122.407],  // Emma Schmitz Viewpoint
+                 [47.576, -122.421],  // Alki Point lighthouse (OSM: 47.5763,-122.4208)
+                 [47.580, -122.410],  // Alki Beach north
                  [47.587, -122.397],  // north Alki
-                 [47.595, -122.387],  // Duwamish Head
+                 [47.589, -122.380],  // Seacrest Dock (OSM: 47.5894,-122.3796)
+                 [47.595, -122.386],  // Duwamish Head (OSM: 47.5953,-122.3862)
                  [47.598, -122.383],  // south Elliott Bay waterfront
                  [47.602, -122.370],  // Harbor Island / Pier 18
-                 [47.606, -122.343],  // Pioneer Square waterfront
-                 [47.608, -122.340],  // Coleman Dock / ferry terminal
+                 [47.607, -122.342],  // Pioneer Square waterfront
+                 [47.602, -122.340],  // Coleman Dock / ferry terminal (OSM: 47.6023,-122.3398)
+                 [47.608, -122.341],  // Pier 54 area
                  [47.611, -122.342],  // Pier 56-59 (aquarium)
                  [47.615, -122.348],  // Pier 62-66
                  [47.620, -122.355],  // Pier 70
@@ -1234,25 +1229,26 @@
                  [47.637, -122.391],  // Smith Cove north / Interbay
                  [47.643, -122.402],  // south Magnolia
                  [47.650, -122.410],  // Magnolia Bluff mid
-                 [47.655, -122.420],  // Magnolia Bluff west
-                 [47.662, -122.436],  // West Point (lighthouse / Discovery Park)
-                 [47.668, -122.430],  // north of West Point
-                 [47.674, -122.420],  // Shilshole Bay south
-                 [47.678, -122.420],  // Shilshole Bay marina
-                 [47.685, -122.413],  // Golden Gardens
-                 [47.694, -122.406],  // Meadow Point (Carkeek Park)
+                 [47.652, -122.418],  // Magnolia Bluff west
+                 [47.662, -122.436],  // West Point lighthouse (OSM: 47.6620,-122.4359)
+                 [47.665, -122.430],  // north of West Point
+                 [47.670, -122.418],  // Shilshole Bay south
+                 [47.677, -122.413],  // Shilshole Bay marina
+                 [47.687, -122.404],  // Golden Gardens (from coastline way ~47.687,-122.404)
+                 [47.694, -122.406],  // Meadow Point / Carkeek (OSM: 47.6935,-122.4060)
                  [47.712, -122.400],  // Carkeek Park north
                  [47.726, -122.396],  // Richmond Beach area
                  [47.740, -122.393],  // south Edmonds
-                 [47.760, -122.390],  // Edmonds waterfront south
-                 [47.776, -122.385],  // Edmonds ferry terminal area
-                 [47.795, -122.383]], // north Edmonds / Meadowdale
+                 [47.760, -122.393],  // Edmonds waterfront south
+                 [47.776, -122.395],  // Edmonds ferry terminal area
+                 [47.782, -122.397],  // Point Wells (OSM: 47.7820,-122.3973)
+                 [47.795, -122.391]], // north Edmonds / Meadowdale
 
                 // === PUGET SOUND EAST SHORE — inner Elliott Bay bulkhead ===
                 // The industrial inner harbor / Duwamish Waterway entrance
-                [[47.595, -122.387],  // Duwamish Head
+                [[47.595, -122.386],  // Duwamish Head
                  [47.591, -122.375],  // Harbor Ave SW
-                 [47.583, -122.365],  // west Duwamish Waterway
+                 [47.584, -122.362],  // west Duwamish Waterway (from way 4921362)
                  [47.574, -122.352],  // Kellogg Island area
                  [47.569, -122.345],  // South Park Bridge area
                  [47.572, -122.340],  // east bank
@@ -1266,7 +1262,7 @@
                 [[47.530, -122.530],  // Manchester area
                  [47.545, -122.525],  // north Manchester
                  [47.558, -122.520],  // south of Rich Passage
-                 [47.570, -122.516],  // Point Glover
+                 [47.591, -122.555],  // Point Glover (OSM: 47.5905,-122.5549)
                  [47.580, -122.510],  // Illahee area
                  [47.598, -122.530],  // Brownsville
                  [47.620, -122.545],  // Keyport area
@@ -1279,36 +1275,37 @@
                  [47.755, -122.510],  // south Suquamish
                  [47.770, -122.505],  // Suquamish
                  [47.785, -122.500],  // south Appletree Cove
-                 [47.797, -122.497]], // Kingston ferry terminal
+                 [47.795, -122.495]], // Kingston ferry terminal (OSM: 47.7947,-122.4948)
 
                 // === BAINBRIDGE ISLAND (clockwise from Restoration Point) ===
-                [[47.584, -122.479],  // Restoration Point (south tip)
-                 [47.588, -122.498],  // south shore west of Restoration Pt
-                 [47.590, -122.510],  // Blakely Harbor south
-                 [47.594, -122.524],  // Blakely Harbor west
-                 [47.600, -122.540],  // Crystal Springs
-                 [47.605, -122.550],  // Point White
-                 [47.612, -122.558],  // SW Bainbridge
-                 [47.625, -122.563],  // west shore mid-south
-                 [47.640, -122.568],  // west shore mid
-                 [47.655, -122.565],  // Battle Point area
-                 [47.665, -122.558],  // west shore north of Battle Point
-                 [47.678, -122.548],  // NW shore
-                 [47.690, -122.535],  // north Bainbridge west
-                 [47.700, -122.522],  // north shore
-                 [47.705, -122.506],  // Point Monroe (north tip)
-                 [47.698, -122.495],  // NE shore south of Pt Monroe
-                 [47.688, -122.489],  // Fay Bainbridge area
-                 [47.675, -122.486],  // NE shore mid
-                 [47.660, -122.488],  // Yeomalt Point area
-                 [47.648, -122.490],  // Rolling Bay
-                 [47.635, -122.493],  // east shore mid
-                 [47.625, -122.492],  // Wing Point north (Eagle Harbor north)
-                 [47.618, -122.496],  // Eagle Harbor entrance north
-                 [47.613, -122.510],  // Eagle Harbor inner west
-                 [47.610, -122.510],  // Eagle Harbor inner south
-                 [47.612, -122.498],  // Eagle Harbor entrance south
-                 [47.608, -122.490],  // Winslow ferry area
+                // Verified against OSM cape/point nodes and coastline ways
+                [[47.584, -122.479],  // Restoration Point (OSM: 47.5837,-122.4790)
+                 [47.586, -122.498],  // south shore west of Restoration Pt
+                 [47.588, -122.510],  // Blakely Harbor south
+                 [47.590, -122.524],  // Blakely Harbor west
+                 [47.591, -122.540],  // Crystal Springs
+                 [47.591, -122.567],  // Point White (OSM: 47.5907,-122.5674)
+                 [47.598, -122.575],  // SW Bainbridge
+                 [47.615, -122.580],  // west shore mid-south
+                 [47.635, -122.580],  // west shore mid
+                 [47.655, -122.575],  // Battle Point area
+                 [47.670, -122.565],  // west shore north of Battle Point
+                 [47.685, -122.548],  // NW shore
+                 [47.695, -122.535],  // north Bainbridge west
+                 [47.703, -122.522],  // north shore
+                 [47.709, -122.513],  // Point Monroe (OSM: 47.7092,-122.5126)
+                 [47.700, -122.500],  // NE shore south of Pt Monroe
+                 [47.685, -122.494],  // Fay Bainbridge area
+                 [47.672, -122.492],  // NE shore mid
+                 [47.654, -122.490],  // north of Yeomalt Point
+                 [47.634, -122.489],  // Yeomalt Point (OSM: 47.6335,-122.4891)
+                 [47.625, -122.490],  // east shore mid
+                 [47.621, -122.491],  // Wing Point (OSM: 47.6206,-122.4914)
+                 [47.623, -122.500],  // Eagle Harbor entrance north
+                 [47.619, -122.514],  // Eagle Harbor inner west
+                 [47.616, -122.514],  // Eagle Harbor inner south
+                 [47.618, -122.500],  // Eagle Harbor entrance south (Winslow ferry area)
+                 [47.612, -122.493],  // south of Eagle Harbor
                  [47.600, -122.487],  // south of Eagle Harbor
                  [47.592, -122.482],  // Bean Point area
                  [47.584, -122.479]], // Restoration Point (close loop)
@@ -1320,24 +1317,24 @@
                  [47.528, -122.250],  // Rainier Beach
                  [47.535, -122.259],  // Pritchard Island
                  [47.543, -122.265],  // Beer Sheva Park
-                 [47.550, -122.268],  // Seward Park south
-                 [47.555, -122.273],  // Seward Park (peninsula tip is east)
-                 [47.560, -122.268],  // Seward Park north
+                 [47.549, -122.268],  // Seward Park south
+                 [47.553, -122.271],  // Seward Park (peninsula tip is east)
+                 [47.558, -122.266],  // Seward Park north
                  [47.570, -122.272],  // Genesee Park
                  [47.580, -122.278],  // Mount Baker beach
-                 [47.587, -122.282],  // Leschi
-                 [47.595, -122.282],  // Leschi north
-                 [47.603, -122.280],  // Madrona Park
-                 [47.611, -122.278],  // Denny-Blaine
-                 [47.620, -122.277],  // Madison Park
-                 [47.632, -122.277],  // Broadmoor (Washington Park Arboretum)
-                 [47.640, -122.275],  // Union Bay south / 520 bridge area
-                 [47.650, -122.272],  // Union Bay / University Village area
-                 [47.656, -122.270],  // University Village east
-                 [47.666, -122.265],  // Laurelhurst
-                 [47.676, -122.253],  // Sand Point / Magnuson Park
-                 [47.685, -122.258],  // Sand Point north
-                 [47.696, -122.270],  // Matthews Beach
+                 [47.586, -122.284],  // Leschi
+                 [47.595, -122.284],  // Leschi north
+                 [47.603, -122.282],  // Madrona Park
+                 [47.611, -122.280],  // Denny-Blaine
+                 [47.618, -122.280],  // Madison Park
+                 [47.632, -122.280],  // Broadmoor (Washington Park Arboretum)
+                 [47.641, -122.277],  // Union Bay south / 520 bridge area
+                 [47.648, -122.278],  // Webster Point / Laurelhurst (OSM: 47.6483,-122.2776)
+                 [47.656, -122.272],  // University Village east
+                 [47.668, -122.262],  // Laurelhurst north
+                 [47.682, -122.250],  // Sand Point / Magnuson Park
+                 [47.688, -122.255],  // Sand Point north
+                 [47.696, -122.268],  // Matthews Beach
                  [47.710, -122.275],  // Lake Forest Park south
                  [47.725, -122.275],  // Lake Forest Park
                  [47.740, -122.265],  // Kenmore south
@@ -1372,19 +1369,19 @@
                  [47.505, -122.210]], // Renton south (close loop)
 
                 // === MERCER ISLAND (clockwise from north tip) ===
-                [[47.594, -122.225],  // north tip (I-90 bridge)
-                 [47.590, -122.216],  // NE shore
-                 [47.582, -122.212],  // east shore north
-                 [47.572, -122.209],  // east shore mid
-                 [47.562, -122.212],  // SE shore
+                [[47.593, -122.225],  // north tip (I-90 bridge)
+                 [47.589, -122.216],  // NE shore
+                 [47.580, -122.212],  // east shore north
+                 [47.570, -122.209],  // east shore mid (Groat Point at 47.608,-122.224)
+                 [47.560, -122.212],  // SE shore
                  [47.550, -122.218],  // south tip area
-                 [47.545, -122.225],  // south tip
-                 [47.548, -122.233],  // SW shore
-                 [47.558, -122.238],  // west shore south
-                 [47.568, -122.240],  // west shore mid
-                 [47.578, -122.237],  // west shore north
-                 [47.587, -122.232],  // NW shore
-                 [47.594, -122.225]], // north tip (close loop)
+                 [47.543, -122.224],  // south tip
+                 [47.547, -122.233],  // SW shore
+                 [47.557, -122.238],  // west shore south
+                 [47.567, -122.240],  // west shore mid
+                 [47.577, -122.237],  // west shore north
+                 [47.586, -122.232],  // NW shore
+                 [47.593, -122.225]], // north tip (close loop)
 
                 // === LAKE UNION (clockwise from south / south end) ===
                 [[47.626, -122.338],  // south end (south Lake Union / MOHAI)
@@ -1411,9 +1408,9 @@
                  [47.655, -122.355],  // Fremont Bridge
                  [47.658, -122.372],  // Ballard Bridge area
                  [47.660, -122.385],  // Salmon Bay east
-                 [47.665, -122.395],  // Salmon Bay mid
-                 [47.668, -122.402],  // Hiram M Chittenden Locks
-                 [47.672, -122.410]], // Shilshole Bay
+                 [47.665, -122.400],  // Salmon Bay mid (from way 159934462)
+                 [47.668, -122.408],  // Hiram M Chittenden Locks
+                 [47.672, -122.413]], // Shilshole Bay
 
                 // === PORTAGE BAY / UNION BAY (connecting Lake Union to Lake Washington) ===
                 [[47.643, -122.325],  // Eastlake / Portage Bay west
@@ -1423,15 +1420,15 @@
                  [47.650, -122.305],  // Montlake Cut west
                  [47.650, -122.295],  // Montlake Cut east
                  [47.651, -122.285],  // Union Bay west
-                 [47.650, -122.272]], // Union Bay / University Village
+                 [47.648, -122.278]], // Union Bay / Webster Point
 
                 // === SEWARD PARK PENINSULA (juts east into Lake Washington) ===
-                [[47.555, -122.273],  // Seward Park base north
-                 [47.550, -122.268],  // peninsula mid
-                 [47.548, -122.258],  // Andrews Bay / tip area
-                 [47.552, -122.253],  // east side of peninsula
-                 [47.557, -122.260],  // north east
-                 [47.560, -122.268]], // rejoin west shore
+                [[47.553, -122.271],  // Seward Park base north
+                 [47.549, -122.266],  // peninsula mid
+                 [47.547, -122.257],  // Andrews Bay / tip area
+                 [47.551, -122.252],  // east side of peninsula
+                 [47.556, -122.259],  // north east
+                 [47.558, -122.266]], // rejoin west shore
             ];
 
             ctx.lineJoin = 'round';
@@ -1754,16 +1751,8 @@
                         <span class="value">${ownerDisplay.substring(0, 20)}${ownerDisplay.length > 20 ? '...' : ''}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="label">Distance</span>
-                        <span class="value">${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
-                    </div>
-                    <div class="detail-item">
                         <span class="label">Bearing</span>
-                        <span class="value">
-                            ${ac.bearing_deg != null
-                                ? `<span class="bearing-deg">${ac.bearing_deg}&deg;</span> <span class="bearing-card">${ac.bearing_cardinal16 || ac.bearing_cardinal || ''}</span>`
-                                : '---'}
-                        </span>
+                        <span class="value">${ac.bearing_deg != null ? ac.bearing_deg + '° ' + (ac.bearing_cardinal16 || ac.bearing_cardinal || '') : '---'}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Coordinates</span>
