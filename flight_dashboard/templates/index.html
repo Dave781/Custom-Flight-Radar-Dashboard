@@ -470,7 +470,7 @@
             <div class="header-right">
                 <div class="threshold-control">
                     <label>Max Age</label>
-                    <input type="range" id="threshold-slider" min="5" max="300" step="5" value="60">
+                    <input type="range" id="threshold-slider" min="10" max="300" step="10" value="120">
                     <span class="threshold-value"><span id="threshold-display">60</span>s</span>
                 </div>
                 <div class="header-stat">
@@ -727,13 +727,33 @@
             updateDisplay();
         }
 
+        let fetchFailures = 0;
+
         function fetchData() {
             fetch('/api/aircraft')
                 .then(res => res.json())
-                .then(data => updateDashboard(data))
+                .then(data => {
+                    fetchFailures = 0;
+                    const indicator = document.getElementById('connection-indicator');
+                    if (indicator) indicator.remove();
+                    updateDashboard(data);
+                })
                 .catch(err => {
                     console.error('Fetch error:', err);
-                    updateDashboard({ error: 'Connection failed' });
+                    fetchFailures++;
+                    if (fetchFailures >= 3) {
+                        updateDashboard({ error: 'Connection failed — retrying…' });
+                    } else {
+                        // Show subtle indicator without wiping the display
+                        let indicator = document.getElementById('connection-indicator');
+                        if (!indicator) {
+                            indicator = document.createElement('div');
+                            indicator.id = 'connection-indicator';
+                            indicator.style.cssText = 'position:fixed;top:8px;right:12px;background:#ff4444;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;opacity:0.85;z-index:999';
+                            indicator.textContent = 'Reconnecting…';
+                            document.body.appendChild(indicator);
+                        }
+                    }
                 });
         }
 
