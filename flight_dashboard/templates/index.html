@@ -627,12 +627,8 @@
                         <span class="value">${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="label">Latitude</span>
-                        <span class="value">${ac.lat != null ? ac.lat.toFixed(4) + '°' : '---'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Longitude</span>
-                        <span class="value">${ac.lon != null ? ac.lon.toFixed(4) + '°' : '---'}</span>
+                        <span class="label">Coordinates</span>
+                        <span class="value">${ac.lat != null ? ac.lat.toFixed(4) + '°, ' + ac.lon.toFixed(4) + '°' : '---'}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Signal (dBFS)</span>
