@@ -169,6 +169,9 @@
             color: var(--primary);
             text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
             margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .featured-airline {
@@ -610,11 +613,6 @@
         }
 
         /* Featured callsign color by class */
-        .featured-callsign {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
         .featured-callsign.class-military {
             color: #f0c040;
             text-shadow: 0 0 24px rgba(240, 192, 64, 0.45);
@@ -801,6 +799,215 @@
     </div>
 
     <script>
+        // ============================================================
+        //  FEATURE 1: Emergency Squawk Tracking
+        // ============================================================
+        const EMERGENCY_SQUAWKS = {
+            '7500': { label: 'HIJACK',         meaning: 'Aircraft is being hijacked',          severity: 'sq-7500', icon: '&#x1F6A8;' },
+            '7600': { label: 'RADIO FAILURE',  meaning: 'Loss of communications (NORDO)',       severity: 'sq-7600', icon: '&#x1F4E1;' },
+            '7700': { label: 'EMERGENCY',      meaning: 'General emergency declared',           severity: 'sq-7700', icon: '&#x1F198;' },
+        };
+
+        // keyed by icao_hex → { squawk, callsign, firstSeen }
+        let emergencySquawks = {};
+
+        function updateEmergencyTracker(aircraft) {
+            const nowMs = Date.now();
+            const activeHexes = new Set();
+
+            for (const ac of aircraft) {
+                const sq = String(ac.squawk || '');
+                if (EMERGENCY_SQUAWKS[sq]) {
+                    activeHexes.add(ac.icao_hex);
+                    if (!emergencySquawks[ac.icao_hex]) {
+                        emergencySquawks[ac.icao_hex] = {
+                            squawk: sq,
+                            callsign: ac.callsign,
+                            firstSeen: nowMs,
+                        };
+                    } else {
+                        // Update callsign in case it changed; preserve firstSeen
+                        emergencySquawks[ac.icao_hex].callsign = ac.callsign;
+                        emergencySquawks[ac.icao_hex].squawk = sq;
+                    }
+                }
+            }
+
+            // Auto-dismiss: remove any that are no longer active
+            for (const hex of Object.keys(emergencySquawks)) {
+                if (!activeHexes.has(hex)) {
+                    delete emergencySquawks[hex];
+                }
+            }
+
+            renderEmergencyBanner();
+        }
+
+        function formatDuration(ms) {
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + 's';
+            const m = Math.floor(s / 60), rs = s % 60;
+            if (m < 60) return m + 'm ' + rs + 's';
+            const h = Math.floor(m / 60), rm = m % 60;
+            return h + 'h ' + rm + 'm';
+        }
+
+        function renderEmergencyBanner() {
+            const banner = document.getElementById('emergency-banner');
+            const entries = Object.values(emergencySquawks);
+
+            if (entries.length === 0) {
+                banner.style.display = 'none';
+                banner.innerHTML = '';
+                return;
+            }
+
+            // Severity order: 7500 most urgent first
+            const order = { '7500': 0, '7700': 1, '7600': 2 };
+            entries.sort((a, b) => (order[a.squawk] ?? 9) - (order[b.squawk] ?? 9));
+
+            banner.style.display = 'block';
+            banner.innerHTML = entries.map(entry => {
+                const info = EMERGENCY_SQUAWKS[entry.squawk];
+                const dur = formatDuration(Date.now() - entry.firstSeen);
+                return `<div class="emergency-alert ${info.severity}">
+                    <span class="emergency-icon">${info.icon}</span>
+                    <div class="emergency-body">
+                        <div class="emergency-title">SQUAWK ${entry.squawk} &mdash; ${info.label} | ${entry.callsign}</div>
+                        <div class="emergency-detail">${info.meaning} &bull; Active for: <strong>${dur}</strong></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Keep durations updating every second
+        setInterval(() => {
+            if (Object.keys(emergencySquawks).length > 0) renderEmergencyBanner();
+        }, 1000);
+
+
+        // ============================================================
+        //  FEATURE 2: Auto-Dim at Night (NOAA Solar Calculation)
+        // ============================================================
+        const ANTENNA_LAT = 47.650923;
+        const ANTENNA_LON = -122.346385;
+
+        // NOAA solar calculation algorithm
+        // Returns { sunrise: Date, sunset: Date } in UTC (use local time comparison)
+        function calcSunriseSunset(lat, lon, date) {
+            const toRad = d => d * Math.PI / 180;
+            const toDeg = r => r * 180 / Math.PI;
+
+            const JD = date.getTime() / 86400000 + 2440587.5;
+            const T  = (JD - 2451545.0) / 36525.0;
+
+            const L0 = (280.46646 + T * (36000.76983 + T * 0.0003032)) % 360;
+            const M  = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+            const C  = Math.sin(toRad(M)) * (1.914602 - T * (0.004817 + 0.000014 * T))
+                     + Math.sin(toRad(2 * M)) * (0.019993 - 0.000101 * T)
+                     + Math.sin(toRad(3 * M)) * 0.000289;
+            const sunLon  = L0 + C;
+            const omega   = 125.04 - 1934.136 * T;
+            const lambda  = sunLon - 0.00569 - 0.00478 * Math.sin(toRad(omega));
+            const eps0    = 23.0 + (26.0 + (21.448 - T * (46.8150 + T * (0.00059 - T * 0.001813))) / 60.0) / 60.0;
+            const epsilon = eps0 + 0.00256 * Math.cos(toRad(omega));
+            const sinDec  = Math.sin(toRad(epsilon)) * Math.sin(toRad(lambda));
+            const dec     = toDeg(Math.asin(sinDec));
+            const y       = Math.tan(toRad(epsilon / 2)) ** 2;
+            const ecc     = 0.016708634;
+            const eot     = 4 * toDeg(
+                y * Math.sin(2 * toRad(L0))
+                - 2 * ecc * Math.sin(toRad(M))
+                + 4 * ecc * y * Math.sin(toRad(M)) * Math.cos(2 * toRad(L0))
+                - 0.5 * y * y * Math.sin(4 * toRad(L0))
+                - 1.25 * ecc * ecc * Math.sin(2 * toRad(M))
+            );
+
+            const cosHA = (Math.cos(toRad(90.833)) - Math.sin(toRad(lat)) * Math.sin(toRad(dec)))
+                        / (Math.cos(toRad(lat)) * Math.cos(toRad(dec)));
+
+            // Polar day/night edge cases
+            if (cosHA <= -1) return { sunrise: new Date(date.setHours(0,0,0,0)), sunset: new Date(date.setHours(23,59,59,0)) };
+            if (cosHA >=  1) return { sunrise: null, sunset: null };
+
+            const HA          = toDeg(Math.acos(cosHA));
+            const solarNoonUTC = 720 - 4 * lon - eot;
+            const sunriseUTC  = solarNoonUTC - 4 * HA;
+            const sunsetUTC   = solarNoonUTC + 4 * HA;
+
+            const sod = new Date(date); sod.setUTCHours(0, 0, 0, 0);
+            return {
+                sunrise: new Date(sod.getTime() + sunriseUTC * 60000),
+                sunset:  new Date(sod.getTime() + sunsetUTC  * 60000),
+            };
+        }
+
+        let isNightMode   = false;
+        let dayNightOverride = false;
+
+        function applyDimMode(night) {
+            document.body.style.filter = night ? 'brightness(0.4)' : 'brightness(1)';
+            const toggle = document.getElementById('daynight-toggle');
+            if (toggle) toggle.textContent = night ? '\u263E' : '\u2600';
+        }
+
+        function checkDayNight() {
+            const now = new Date();
+            const { sunrise, sunset } = calcSunriseSunset(ANTENNA_LAT, ANTENNA_LON, new Date(now));
+            let shouldBeNight = false;
+            if (sunrise && sunset) {
+                shouldBeNight = now < sunrise || now > sunset;
+            }
+
+            if (dayNightOverride) {
+                // Cancel override when natural switch point is reached
+                if (shouldBeNight !== isNightMode) {
+                    dayNightOverride = false;
+                    document.getElementById('daynight-toggle').classList.remove('override-active');
+                    isNightMode = shouldBeNight;
+                    applyDimMode(isNightMode);
+                }
+                // else remain in forced-day state
+            } else {
+                if (shouldBeNight !== isNightMode) {
+                    isNightMode = shouldBeNight;
+                    applyDimMode(isNightMode);
+                }
+            }
+        }
+
+        document.getElementById('daynight-toggle').addEventListener('click', () => {
+            dayNightOverride = !dayNightOverride;
+            const toggle = document.getElementById('daynight-toggle');
+            if (dayNightOverride) {
+                toggle.classList.add('override-active');
+                applyDimMode(false);        // force bright
+            } else {
+                toggle.classList.remove('override-active');
+                checkDayNight();            // re-evaluate immediately
+            }
+        });
+
+        // Initial check + recalculate every minute
+        checkDayNight();
+        setInterval(checkDayNight, 60000);
+
+
+        // ============================================================
+        //  FEATURE 3 helper: resolve effective display class
+        // ============================================================
+        function getAircraftDisplayClass(ac) {
+            const sq = String(ac.squawk || '');
+            if (EMERGENCY_SQUAWKS[sq]) return 'emergency';
+            if (ac.aircraft_class === 'military') return 'military';
+            if (ac.aircraft_class === 'heavy')    return 'heavy';
+            return 'normal';
+        }
+
+
+        // ============================================================
+        //  Core dashboard state
+        // ============================================================
         let selectedIndex = 0;
         let aircraftData = [];
 
@@ -1061,8 +1268,26 @@
             const ownerDisplay = ac.owner || '---';
             const vertClass = getVerticalClass(ac.vertical_status);
 
+            // Feature 3: apply class tint to featured panel border
+            const displayClass = getAircraftDisplayClass(ac);
+            const panel = document.getElementById('featured-panel');
+            if (panel) {
+                panel.className = 'featured-panel' +
+                    (displayClass !== 'normal' ? ' class-' + displayClass : '');
+            }
+
+            // Class badge for military/heavy
+            let classBadgeHtml = '';
+            if (ac.aircraft_class === 'military') {
+                classBadgeHtml = '<span class="class-badge-featured mil">MIL</span>';
+            } else if (ac.aircraft_class === 'heavy') {
+                classBadgeHtml = '<span class="class-badge-featured heavy">HEAVY</span>';
+            }
+
+            const callsignColorClass = displayClass !== 'normal' ? ' class-' + displayClass : '';
+
             return `
-                <div class="featured-callsign">${ac.callsign}</div>
+                <div class="featured-callsign${callsignColorClass}">${ac.callsign}${classBadgeHtml}</div>
                 <div class="featured-airline">${ac.airline || 'Unknown Operator'}</div>
                 ${typeDisplay !== '---' ? `<div class="featured-aircraft-type">${typeDisplay}</div>` : ''}
 
@@ -1156,10 +1381,25 @@
                 const isSelected = i === selectedIndex;
                 const typeDisplay = ac.typecode || '';
 
+                // Feature 3: class-based row styling
+                const displayClass = getAircraftDisplayClass(ac);
+                const itemClasses = [
+                    'aircraft-item',
+                    isSelected ? 'selected' : '',
+                    displayClass !== 'normal' ? 'class-' + displayClass : '',
+                ].filter(Boolean).join(' ');
+
+                let badgeHtml = '';
+                if (ac.aircraft_class === 'military') {
+                    badgeHtml = '<span class="class-badge mil">MIL</span>';
+                } else if (ac.aircraft_class === 'heavy') {
+                    badgeHtml = '<span class="class-badge heavy">HEAVY</span>';
+                }
+
                 return `
-                    <div class="aircraft-item ${isSelected ? 'selected' : ''}" onclick="selectAircraft(${i})">
+                    <div class="${itemClasses}" onclick="selectAircraft(${i})">
                         <div class="aircraft-item-header">
-                            <span class="aircraft-item-callsign">${ac.callsign}</span>
+                            <span class="aircraft-item-callsign">${ac.callsign}${badgeHtml}</span>
                             ${typeDisplay ? `<span class="aircraft-item-type">${typeDisplay}</span>` : ''}
                         </div>
                         <div class="aircraft-item-stats">
@@ -1230,6 +1470,9 @@
                 document.title = data.dashboard_title;
                 document.querySelector('.logo').textContent = data.dashboard_title;
             }
+
+            // Feature 1: update emergency squawk tracker on every data cycle
+            updateEmergencyTracker(aircraftData);
 
             updateDisplay();
         }
