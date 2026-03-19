@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 # Configuration
 DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
-seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 60))
+seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 120))
 DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Dave's ADS-B Radar")
 
 # Antenna location (Shoreline, WA)
@@ -276,7 +276,7 @@ def api_seen_threshold():
     global seen_threshold
     if request.method == 'POST':
         value = request.json.get('value')
-        if isinstance(value, int) and 5 <= value <= 300:
+        if isinstance(value, int) and 10 <= value <= 300:
             seen_threshold = value
     return jsonify({'seen_threshold': seen_threshold})
 
