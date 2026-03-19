@@ -430,18 +430,76 @@
             margin-left: 10px;
         }
 
-        /* Radar Map */
-        .radar-map-panel {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
+        /* Radar toggle button */
+        #radar-toggle-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            padding: 5px 12px;
             border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            transition: border-color 0.2s, color 0.2s;
+            user-select: none;
+        }
+        #radar-toggle-btn:hover, #radar-toggle-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Radar modal overlay */
+        #radar-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        #radar-modal.visible {
+            display: flex;
+        }
+
+        .radar-modal-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            box-shadow: 0 0 40px rgba(0,255,136,0.15);
+            width: min(90vw, 520px);
             overflow: hidden;
         }
+
+        .radar-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .radar-modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--primary);
+            letter-spacing: 1px;
+        }
+
+        .radar-close-btn {
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+        }
+        .radar-close-btn:hover { border-color: var(--border); color: #fff; }
 
         .radar-canvas-wrap {
             position: relative;
             width: 100%;
-            /* height set by JS to keep it square */
         }
 
         #radar-canvas {
@@ -449,26 +507,6 @@
             width: 100%;
             height: 100%;
             cursor: crosshair;
-        }
-
-        /* Top-level layout: radar left, right column (featured + list) */
-        .top-grid {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 20px;
-            align-items: start;
-        }
-
-        .right-column {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        @media (max-width: 900px) {
-            .top-grid {
-                grid-template-columns: 1fr;
-            }
         }
 
         /* Bearing in detail panel */
@@ -734,6 +772,7 @@
                 <span id="demo-badge"></span>
             </div>
             <div class="header-right" style="align-items:center;">
+                <button id="radar-toggle-btn" title="Toggle radar display">⬤ RADAR</button>
                 <!-- Feature 2: Day/Night indicator & manual override -->
                 <span id="daynight-toggle" title="Click to override day/night mode">&#9728;</span>
 
@@ -753,42 +792,40 @@
             </div>
         </header>
 
-        <div class="top-grid">
-            <!-- Left: Radar Map -->
-            <div class="radar-map-panel">
-                <div class="panel-header">
-                    <span class="panel-title">Radar Display</span>
-                    <span id="radar-range-label" style="color: var(--text-dim); font-size: 0.75rem;">100 mi range</span>
+        <!-- Radar modal overlay -->
+        <div id="radar-modal">
+            <div class="radar-modal-box">
+                <div class="radar-modal-header">
+                    <span class="radar-modal-title">RADAR DISPLAY — 50 mi</span>
+                    <span class="radar-close-btn" id="radar-close-btn" title="Close">✕</span>
                 </div>
                 <div class="radar-canvas-wrap" id="radar-canvas-wrap">
                     <canvas id="radar-canvas"></canvas>
                 </div>
             </div>
+        </div>
 
-            <!-- Right: Featured + List -->
-            <div class="right-column">
-                <div class="featured-panel" id="featured-panel">
-                    <div class="panel-header">
-                        <span class="panel-title">Primary Target</span>
-                        <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
-                    </div>
-                    <div class="featured-content" id="featured-content">
-                        <div class="no-data">
-                            <div class="radar-sweep"></div>
-                            <div class="no-data-text">Scanning for aircraft...</div>
-                        </div>
-                    </div>
+        <!-- Main layout: full-width featured + list -->
+        <div class="featured-panel" id="featured-panel">
+            <div class="panel-header">
+                <span class="panel-title">Primary Target</span>
+                <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
+            </div>
+            <div class="featured-content" id="featured-content">
+                <div class="no-data">
+                    <div class="radar-sweep"></div>
+                    <div class="no-data-text">Scanning for aircraft...</div>
                 </div>
+            </div>
+        </div>
 
-                <div class="aircraft-list-panel">
-                    <div class="panel-header">
-                        <span class="panel-title">All Contacts</span>
-                    </div>
-                    <div class="aircraft-list" id="aircraft-list">
-                        <div class="no-data">
-                            <div class="no-data-text">No contacts</div>
-                        </div>
-                    </div>
+        <div class="aircraft-list-panel" style="margin-top:20px;">
+            <div class="panel-header">
+                <span class="panel-title">All Contacts</span>
+            </div>
+            <div class="aircraft-list" id="aircraft-list">
+                <div class="no-data">
+                    <div class="no-data-text">No contacts</div>
                 </div>
             </div>
         </div>
@@ -1016,8 +1053,8 @@
         const HOME_LON = -122.346385;
 
         // ── Radar Map ─────────────────────────────────────────────────────────
-        const RANGE_RINGS_MI = [25, 50, 75, 100];
-        const MAX_RANGE_MI = 100;
+        const RANGE_RINGS_MI = [10, 25, 50];
+        const MAX_RANGE_MI = 50;
         // Miles per degree latitude (constant); miles per degree longitude varies
         const MI_PER_DEG_LAT = 69.0;
 
@@ -1199,14 +1236,38 @@
             const canvas = document.getElementById('radar-canvas');
             if (!canvas) return;
 
-            // Resize canvas height to match width (square)
+            // Resize canvas to square when modal is visible
             function resizeCanvas() {
                 const wrap = document.getElementById('radar-canvas-wrap');
                 wrap.style.height = wrap.clientWidth + 'px';
                 drawRadar();
             }
             window.addEventListener('resize', resizeCanvas);
-            resizeCanvas();
+
+            // Modal toggle
+            const modal = document.getElementById('radar-modal');
+            const toggleBtn = document.getElementById('radar-toggle-btn');
+            const closeBtn = document.getElementById('radar-close-btn');
+
+            function openRadar() {
+                modal.classList.add('visible');
+                toggleBtn.classList.add('active');
+                // Slight delay so the modal has rendered before sizing canvas
+                setTimeout(resizeCanvas, 30);
+            }
+            function closeRadar() {
+                modal.classList.remove('visible');
+                toggleBtn.classList.remove('active');
+            }
+
+            toggleBtn.addEventListener('click', () => {
+                modal.classList.contains('visible') ? closeRadar() : openRadar();
+            });
+            closeBtn.addEventListener('click', closeRadar);
+            // Tap outside the box to close
+            modal.addEventListener('click', e => {
+                if (e.target === modal) closeRadar();
+            });
 
             // Click / tap to select aircraft
             canvas.addEventListener('click', function(e) {
