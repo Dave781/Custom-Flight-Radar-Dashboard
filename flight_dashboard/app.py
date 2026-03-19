@@ -114,6 +114,30 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
 
+def calculate_bearing(lat1, lon1, lat2, lon2):
+    """Calculate bearing from point 1 to point 2.
+    Returns (degrees 0-360, 8-point cardinal, 16-point cardinal).
+    """
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dlambda = math.radians(lon2 - lon1)
+    x = math.sin(dlambda) * math.cos(phi2)
+    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda)
+    bearing = (math.degrees(math.atan2(x, y)) + 360) % 360
+    bearing_rounded = round(bearing, 1)
+
+    # 8-point cardinal (45° increments, centred on each direction)
+    dirs8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+    card8 = dirs8[int((bearing + 22.5) / 45) % 8]
+
+    # 16-point cardinal (22.5° increments)
+    dirs16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+              'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    card16 = dirs16[int((bearing + 11.25) / 22.5) % 16]
+
+    return bearing_rounded, card8, card16
+
+
 def get_airline_name(callsign):
     """Extract airline name from callsign"""
     if not callsign or len(callsign) < 3:
@@ -230,6 +254,12 @@ def enrich_aircraft(aircraft):
         ac['age'] = calculate_age(db_info.get('built'))
         ac['distance_mi'] = haversine_distance(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
 
+        # Bearing from antenna to aircraft
+        bearing_deg, bearing_card8, bearing_card16 = calculate_bearing(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+        ac['bearing_deg'] = bearing_deg
+        ac['bearing_cardinal'] = bearing_card8    # 8-point for list
+        ac['bearing_cardinal16'] = bearing_card16  # 16-point for detail panel
+
         # Aircraft type display string
         if ac['manufacturer'] and ac['model']:
             ac['aircraft_type'] = f"{ac['manufacturer']} {ac['model']}"
@@ -239,6 +269,44 @@ def enrich_aircraft(aircraft):
             ac['aircraft_type'] = ac['typecode']
         else:
             ac['aircraft_type'] = None
+
+        # Aircraft classification: military, heavy, or normal
+        hex_upper = hex_code.upper()
+        is_military = False
+        # US military: AE prefix
+        if hex_upper.startswith('AE'):
+            is_military = True
+        # US military range ADF000–ADFFFF
+        elif len(hex_upper) == 6:
+            try:
+                hex_val = int(hex_upper, 16)
+                if 0xADF000 <= hex_val <= 0xADFFFF:
+                    is_military = True
+            except ValueError:
+                pass
+        # UK military: 43 prefix
+        if hex_upper.startswith('43'):
+            is_military = True
+        # Australian military: 7C prefix
+        if hex_upper.startswith('7C'):
+            is_military = True
+
+        HEAVY_TYPECODES = {
+            'B748', 'B744', 'B77W', 'B772', 'B773', 'B788', 'B789', 'B78X',
+            'A388', 'A332', 'A333', 'A342', 'A343', 'A345', 'A346', 'A359',
+            'A35K', 'C5', 'C17',
+        }
+        typecode_upper = (ac['typecode'] or '').upper()
+        is_heavy = typecode_upper in HEAVY_TYPECODES
+
+        ac['is_military'] = is_military
+        ac['is_heavy'] = is_heavy
+        if is_military:
+            ac['aircraft_class'] = 'military'
+        elif is_heavy:
+            ac['aircraft_class'] = 'heavy'
+        else:
+            ac['aircraft_class'] = 'normal'
 
         enriched.append(ac)
 
