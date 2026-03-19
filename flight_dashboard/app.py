@@ -284,12 +284,20 @@ def enrich_aircraft(aircraft):
                     is_military = True
             except ValueError:
                 pass
-        # UK military: 43 prefix
+        # UK military: 43 prefix (43C000–43CFFF and 43EC00–43EFFF; 43 prefix is
+        # the full UK civil/mil allocation so we flag the whole block per spec)
         if hex_upper.startswith('43'):
             is_military = True
-        # Australian military: 7C prefix
-        if hex_upper.startswith('7C'):
-            is_military = True
+        # Australian military: 7CF800–7CFFFE
+        # (7C0000–7FFFFF is the full Australian range including civil;
+        #  only the 7CF8xx sub-block is allocated to the RAAF/military)
+        if len(hex_upper) == 6:
+            try:
+                hex_val = int(hex_upper, 16)
+                if 0x7CF800 <= hex_val <= 0x7CFFFE:
+                    is_military = True
+            except ValueError:
+                pass
 
         HEAVY_TYPECODES = {
             'B748', 'B744', 'B77W', 'B772', 'B773', 'B788', 'B789', 'B78X',
