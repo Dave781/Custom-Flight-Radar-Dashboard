@@ -20,6 +20,7 @@ app = Flask(__name__)
 # Configuration
 DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
 seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 60))
+DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Dave's ADS-B Radar")
 
 # Antenna location (Shoreline, WA)
 HOME_LAT = 47.650923
@@ -267,6 +268,7 @@ def api_aircraft():
         'updated': datetime.now().strftime('%H:%M:%S'),
         'demo_mode': DEMO_MODE,
         'seen_threshold': seen_threshold,
+        'dashboard_title': DASHBOARD_TITLE,
     })
 
 @app.route('/api/settings/seen-threshold', methods=['GET', 'POST'])
