@@ -1,6 +1,14 @@
-# Flight Dashboard
+# Dave's Custom Flight Radar Dashboard
 
 A real-time flight tracking dashboard for Raspberry Pi that displays nearby aircraft using ADS-B data from dump1090.
+
+## Screenshots
+
+![Dashboard Main View](screenshots/dashboard-main.png)
+*Live view showing primary target with full aircraft details and all contacts list*
+
+![Dashboard Detail View](screenshots/dashboard-detail.png)
+*Aircraft detail panel showing registration, owner, type code, age, and signal strength*
 
 ## Features
 - Real-time aircraft tracking with automatic 2-second updates
