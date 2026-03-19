@@ -402,6 +402,30 @@
             margin-top: 20px;
         }
 
+        .threshold-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .threshold-control label {
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .threshold-control input[type=range] {
+            width: 80px;
+            accent-color: var(--primary);
+        }
+
+        .threshold-value {
+            color: var(--primary);
+            min-width: 40px;
+        }
+
         .demo-badge {
             display: inline-block;
             padding: 4px 10px;
@@ -444,6 +468,11 @@
                 <span id="demo-badge"></span>
             </div>
             <div class="header-right">
+                <div class="threshold-control">
+                    <label>Max Age</label>
+                    <input type="range" id="threshold-slider" min="5" max="300" step="5" value="60">
+                    <span class="threshold-value"><span id="threshold-display">60</span>s</span>
+                </div>
                 <div class="header-stat">
                     <div class="value" id="aircraft-count">-</div>
                     <div class="label">Aircraft</div>
@@ -594,6 +623,10 @@
                         <span class="value">${ownerDisplay.substring(0, 20)}${ownerDisplay.length > 20 ? '...' : ''}</span>
                     </div>
                     <div class="detail-item">
+                        <span class="label">Distance</span>
+                        <span class="value">${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
+                    </div>
+                    <div class="detail-item">
                         <span class="label">Signal (dBFS)</span>
                         <span class="value">${ac.rssi ? ac.rssi.toFixed(1) : '---'}</span>
                     </div>
@@ -622,6 +655,10 @@
                             ${typeDisplay ? `<span class="aircraft-item-type">${typeDisplay}</span>` : ''}
                         </div>
                         <div class="aircraft-item-stats">
+                            <div class="aircraft-item-stat">
+                                <span class="icon">◎</span>
+                                <span>${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
+                            </div>
                             <div class="aircraft-item-stat">
                                 <span class="icon">↕</span>
                                 <span>${formatAlt(ac.altitude_baro)} ft</span>
@@ -690,6 +727,30 @@
                     updateDashboard({ error: 'Connection failed' });
                 });
         }
+
+        // Threshold slider
+        const slider = document.getElementById('threshold-slider');
+        const thresholdDisplay = document.getElementById('threshold-display');
+
+        slider.addEventListener('input', () => {
+            thresholdDisplay.textContent = slider.value;
+        });
+
+        slider.addEventListener('change', () => {
+            fetch('/api/settings/seen-threshold', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({value: parseInt(slider.value)})
+            });
+        });
+
+        // Sync slider with server value on load
+        fetch('/api/settings/seen-threshold')
+            .then(r => r.json())
+            .then(d => {
+                slider.value = d.seen_threshold;
+                thresholdDisplay.textContent = d.seen_threshold;
+            });
 
         // Initial fetch
         fetchData();

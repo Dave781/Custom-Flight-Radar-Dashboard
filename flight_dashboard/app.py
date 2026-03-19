@@ -5,8 +5,9 @@ Reads local dump1090 aircraft data and displays overhead flights
 Enriches data with aircraft database lookups
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import json
+import math
 import os
 import random
 import subprocess
@@ -18,6 +19,11 @@ app = Flask(__name__)
 
 # Configuration
 DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
+seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 60))
+
+# Antenna location (Shoreline, WA)
+HOME_LAT = 47.650923
+HOME_LON = -122.346385
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 AIRCRAFT_DB_FILE = os.path.join(DATA_DIR, 'aircraft_db.json')
 DUMP1090_DIR = "/run/dump1090"
@@ -98,6 +104,15 @@ def find_aircraft_json():
             return path
     return None
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """Calculate great-circle distance in miles between two lat/lon points"""
+    R = 3958.8  # Earth radius in miles
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
+
 def get_airline_name(callsign):
     """Extract airline name from callsign"""
     if not callsign or len(callsign) < 3:
@@ -162,6 +177,10 @@ def enrich_aircraft(aircraft):
         if 'lat' not in ac or 'lon' not in ac:
             continue
 
+        # Skip aircraft not seen recently
+        if ac.get('seen', 0) > seen_threshold:
+            continue
+
         hex_code = ac.get('hex', '').lower()
         callsign = ac.get('flight', '').strip()
 
@@ -208,6 +227,7 @@ def enrich_aircraft(aircraft):
         # Computed fields
         ac['airline'] = get_airline_name(callsign) or db_info.get('owner') or None
         ac['age'] = calculate_age(db_info.get('built'))
+        ac['distance_mi'] = haversine_distance(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
 
         # Aircraft type display string
         if ac['manufacturer'] and ac['model']:
@@ -221,8 +241,8 @@ def enrich_aircraft(aircraft):
 
         enriched.append(ac)
 
-    # Sort by signal strength (closest/strongest first)
-    enriched.sort(key=lambda x: x.get('rssi') or -999, reverse=True)
+    # Sort by distance if available, fall back to signal strength
+    enriched.sort(key=lambda x: (x['distance_mi'] is None, x.get('distance_mi') or 9999, -(x.get('rssi') or -999)))
     return enriched
 
 @app.route('/')
@@ -245,8 +265,18 @@ def api_aircraft():
         'total': len(aircraft),
         'timestamp': data.get('now', 0),
         'updated': datetime.now().strftime('%H:%M:%S'),
-        'demo_mode': DEMO_MODE
+        'demo_mode': DEMO_MODE,
+        'seen_threshold': seen_threshold,
     })
+
+@app.route('/api/settings/seen-threshold', methods=['GET', 'POST'])
+def api_seen_threshold():
+    global seen_threshold
+    if request.method == 'POST':
+        value = request.json.get('value')
+        if isinstance(value, int) and 5 <= value <= 300:
+            seen_threshold = value
+    return jsonify({'seen_threshold': seen_threshold})
 
 # Load database on startup
 load_aircraft_db()
