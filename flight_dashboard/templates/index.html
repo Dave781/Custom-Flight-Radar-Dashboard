@@ -31,6 +31,8 @@
             color: #e6edf3;
             min-height: 100vh;
             overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             /* Feature 2: auto-dim smooth 60-second transition */
             transition: filter 60s linear;
             filter: brightness(1);
@@ -430,7 +432,7 @@
             margin-left: 10px;
         }
 
-        /* Radar toggle button */
+        /* Radar toggle button in header */
         #radar-toggle-btn {
             font-family: 'Share Tech Mono', monospace;
             font-size: 0.75rem;
@@ -454,21 +456,19 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.75);
+            background: rgba(0,0,0,0.8);
             z-index: 100;
             align-items: center;
             justify-content: center;
         }
-        #radar-modal.visible {
-            display: flex;
-        }
+        #radar-modal.visible { display: flex; }
 
         .radar-modal-box {
             background: var(--bg-panel);
             border: 1px solid var(--primary);
             border-radius: 6px;
             box-shadow: 0 0 40px rgba(0,255,136,0.15);
-            width: min(90vw, 520px);
+            width: min(92vw, 560px);
             overflow: hidden;
         }
 
@@ -487,11 +487,16 @@
             letter-spacing: 1px;
         }
 
+        .radar-modal-timer {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
         .radar-close-btn {
             cursor: pointer;
             font-size: 1.1rem;
             color: var(--text-dim);
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 3px;
             border: 1px solid transparent;
         }
@@ -507,6 +512,30 @@
             width: 100%;
             height: 100%;
             cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Main layout: featured left, contacts right */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .contacts-column {
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .contacts-column {
+                max-height: none;
+            }
         }
 
         /* Bearing in detail panel */
@@ -792,11 +821,12 @@
             </div>
         </header>
 
-        <!-- Radar modal overlay -->
+        <!-- Radar modal overlay (opens on tap, auto-closes after 15s) -->
         <div id="radar-modal">
             <div class="radar-modal-box">
                 <div class="radar-modal-header">
-                    <span class="radar-modal-title">RADAR DISPLAY — 25 mi</span>
+                    <span class="radar-modal-title">RADAR — 15 mi</span>
+                    <span class="radar-modal-timer" id="radar-timer"></span>
                     <span class="radar-close-btn" id="radar-close-btn" title="Close">✕</span>
                 </div>
                 <div class="radar-canvas-wrap" id="radar-canvas-wrap">
@@ -805,27 +835,31 @@
             </div>
         </div>
 
-        <!-- Main layout: full-width featured + list -->
-        <div class="featured-panel" id="featured-panel">
-            <div class="panel-header">
-                <span class="panel-title">Primary Target</span>
-                <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
-            </div>
-            <div class="featured-content" id="featured-content">
-                <div class="no-data">
-                    <div class="radar-sweep"></div>
-                    <div class="no-data-text">Scanning for aircraft...</div>
+        <!-- Main layout: featured detail left, contacts list right -->
+        <div class="main-grid">
+            <div class="featured-panel" id="featured-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Primary Target</span>
+                    <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
+                </div>
+                <div class="featured-content" id="featured-content">
+                    <div class="no-data">
+                        <div class="radar-sweep"></div>
+                        <div class="no-data-text">Scanning for aircraft...</div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="aircraft-list-panel" style="margin-top:20px;">
-            <div class="panel-header">
-                <span class="panel-title">All Contacts</span>
-            </div>
-            <div class="aircraft-list" id="aircraft-list">
-                <div class="no-data">
-                    <div class="no-data-text">No contacts</div>
+            <div class="contacts-column">
+                <div class="aircraft-list-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">All Contacts</span>
+                    </div>
+                    <div class="aircraft-list" id="aircraft-list">
+                        <div class="no-data">
+                            <div class="no-data-text">No contacts</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1014,15 +1048,11 @@
         }
 
         document.getElementById('daynight-toggle').addEventListener('click', () => {
-            dayNightOverride = !dayNightOverride;
+            dayNightOverride = true;
+            isNightMode = !isNightMode;     // toggle between dim and bright
             const toggle = document.getElementById('daynight-toggle');
-            if (dayNightOverride) {
-                toggle.classList.add('override-active');
-                applyDimMode(false);        // force bright
-            } else {
-                toggle.classList.remove('override-active');
-                checkDayNight();            // re-evaluate immediately
-            }
+            toggle.classList.add('override-active');
+            applyDimMode(isNightMode);
         });
 
         // Initial check + recalculate every minute
@@ -1053,8 +1083,8 @@
         const HOME_LON = -122.346385;
 
         // ── Radar Map ─────────────────────────────────────────────────────────
-        const RANGE_RINGS_MI = [5, 10, 20];
-        const MAX_RANGE_MI = 25;
+        const RANGE_RINGS_MI = [5, 10, 15];
+        const MAX_RANGE_MI = 15;
         // Miles per degree latitude (constant); miles per degree longitude varies
         const MI_PER_DEG_LAT = 69.0;
 
@@ -1081,6 +1111,9 @@
         function drawRadar() {
             const canvas = document.getElementById('radar-canvas');
             if (!canvas) return;
+            // Skip drawing when modal is hidden (canvas has 0 dimensions)
+            const modal = document.getElementById('radar-modal');
+            if (modal && !modal.classList.contains('visible')) return;
 
             // Keep canvas square, fill wrapper width
             const wrap = document.getElementById('radar-canvas-wrap');
@@ -1137,6 +1170,50 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText(label, lx, ly);
             });
+
+            // Coastline — simplified Puget Sound shoreline segments
+            // Each sub-array is a polyline of [lat, lon] points
+            const COASTLINE = [
+                // East shore of Puget Sound (Seattle waterfront up through Shoreline)
+                [[47.495, -122.370], [47.520, -122.360], [47.545, -122.345],
+                 [47.560, -122.350], [47.580, -122.355], [47.600, -122.370],
+                 [47.615, -122.380], [47.620, -122.375], [47.630, -122.370],
+                 [47.645, -122.365], [47.660, -122.370], [47.680, -122.380],
+                 [47.700, -122.370], [47.720, -122.365], [47.740, -122.355],
+                 [47.760, -122.345], [47.780, -122.340], [47.800, -122.350]],
+                // West shore — Bainbridge/Kitsap Peninsula eastern coast
+                [[47.500, -122.510], [47.530, -122.520], [47.560, -122.530],
+                 [47.580, -122.525], [47.600, -122.520], [47.620, -122.515],
+                 [47.640, -122.510], [47.660, -122.505], [47.680, -122.500],
+                 [47.700, -122.495], [47.720, -122.490], [47.740, -122.485],
+                 [47.760, -122.480], [47.780, -122.475], [47.800, -122.470]],
+                // Lake Washington west shore
+                [[47.510, -122.265], [47.530, -122.260], [47.555, -122.255],
+                 [47.575, -122.260], [47.600, -122.265], [47.620, -122.270],
+                 [47.640, -122.275], [47.660, -122.280], [47.680, -122.275],
+                 [47.700, -122.265], [47.720, -122.255], [47.735, -122.250]],
+                // Lake Washington east shore
+                [[47.510, -122.220], [47.530, -122.215], [47.555, -122.210],
+                 [47.575, -122.205], [47.600, -122.200], [47.620, -122.200],
+                 [47.640, -122.205], [47.660, -122.210], [47.680, -122.215],
+                 [47.700, -122.210], [47.720, -122.205], [47.735, -122.200]],
+            ];
+
+            ctx.strokeStyle = 'rgba(0,150,200,0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'round';
+            COASTLINE.forEach(segment => {
+                ctx.beginPath();
+                segment.forEach((pt, j) => {
+                    const p = latLonToCanvas(pt[0], pt[1], cx, cy, scale);
+                    if (j === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+            });
+
+            // Fill water areas with subtle blue between shore pairs
+            ctx.fillStyle = 'rgba(0,80,140,0.08)';
 
             // Antenna centre dot
             ctx.beginPath();
@@ -1236,38 +1313,63 @@
             const canvas = document.getElementById('radar-canvas');
             if (!canvas) return;
 
-            // Resize canvas to square when modal is visible
             function resizeCanvas() {
                 const wrap = document.getElementById('radar-canvas-wrap');
-                wrap.style.height = wrap.clientWidth + 'px';
+                if (wrap) wrap.style.height = wrap.clientWidth + 'px';
                 drawRadar();
             }
             window.addEventListener('resize', resizeCanvas);
 
-            // Modal toggle
+            // Modal open/close with 15-second auto-dismiss
             const modal = document.getElementById('radar-modal');
             const toggleBtn = document.getElementById('radar-toggle-btn');
             const closeBtn = document.getElementById('radar-close-btn');
+            const timerEl = document.getElementById('radar-timer');
+            let autoCloseTimer = null;
+            let countdownInterval = null;
+            let secondsLeft = 0;
+
+            function startAutoClose() {
+                clearTimeout(autoCloseTimer);
+                clearInterval(countdownInterval);
+                secondsLeft = 15;
+                timerEl.textContent = secondsLeft + 's';
+                countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    timerEl.textContent = secondsLeft > 0 ? secondsLeft + 's' : '';
+                }, 1000);
+                autoCloseTimer = setTimeout(closeRadar, 15000);
+            }
+
+            function resetAutoClose() {
+                if (modal.classList.contains('visible')) startAutoClose();
+            }
 
             function openRadar() {
                 modal.classList.add('visible');
                 toggleBtn.classList.add('active');
-                // Slight delay so the modal has rendered before sizing canvas
                 setTimeout(resizeCanvas, 30);
+                startAutoClose();
             }
+
             function closeRadar() {
                 modal.classList.remove('visible');
                 toggleBtn.classList.remove('active');
+                clearTimeout(autoCloseTimer);
+                clearInterval(countdownInterval);
+                timerEl.textContent = '';
             }
 
             toggleBtn.addEventListener('click', () => {
                 modal.classList.contains('visible') ? closeRadar() : openRadar();
             });
             closeBtn.addEventListener('click', closeRadar);
-            // Tap outside the box to close
-            modal.addEventListener('click', e => {
-                if (e.target === modal) closeRadar();
-            });
+            modal.addEventListener('click', e => { if (e.target === modal) closeRadar(); });
+
+            // Any interaction inside the radar resets the 15s timer
+            const modalBox = modal.querySelector('.radar-modal-box');
+            modalBox.addEventListener('click', resetAutoClose);
+            modalBox.addEventListener('touchstart', resetAutoClose);
 
             // Click / tap to select aircraft
             canvas.addEventListener('click', function(e) {
@@ -1552,10 +1654,10 @@
                 .catch(err => {
                     console.error('Fetch error:', err);
                     fetchFailures++;
-                    if (fetchFailures >= 3) {
+                    if (fetchFailures >= 5) {
                         updateDashboard({ error: 'Connection failed — retrying…' });
-                    } else {
-                        // Show subtle indicator without wiping the display
+                    } else if (fetchFailures >= 3) {
+                        // Show subtle indicator only after 3 consecutive misses
                         let indicator = document.getElementById('connection-indicator');
                         if (!indicator) {
                             indicator = document.createElement('div');
