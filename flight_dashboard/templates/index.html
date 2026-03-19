@@ -31,6 +31,11 @@
             color: #e6edf3;
             min-height: 100vh;
             overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            /* Feature 2: auto-dim smooth 60-second transition */
+            transition: filter 60s linear;
+            filter: brightness(1);
         }
 
         /* Scanline effect */
@@ -130,19 +135,6 @@
             text-transform: uppercase;
         }
 
-        /* Main Grid */
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 20px;
-        }
-
-        @media (max-width: 1000px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         /* Featured Aircraft Panel */
         .featured-panel {
             background: var(--bg-panel);
@@ -179,6 +171,9 @@
             color: var(--primary);
             text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
             margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .featured-airline {
@@ -437,6 +432,341 @@
             margin-left: 10px;
         }
 
+        /* Radar toggle button in header */
+        #radar-toggle-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            transition: border-color 0.2s, color 0.2s;
+            user-select: none;
+        }
+        #radar-toggle-btn:hover, #radar-toggle-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Radar modal overlay */
+        #radar-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        #radar-modal.visible { display: flex; }
+
+        .radar-modal-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            box-shadow: 0 0 40px rgba(0,255,136,0.15);
+            width: min(92vw, 560px);
+            overflow: hidden;
+        }
+
+        .radar-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .radar-modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--primary);
+            letter-spacing: 1px;
+        }
+
+        .radar-modal-timer {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        .radar-close-btn {
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            padding: 2px 8px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+        }
+        .radar-close-btn:hover { border-color: var(--border); color: #fff; }
+
+        .radar-canvas-wrap {
+            position: relative;
+            width: 100%;
+        }
+
+        #radar-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Main layout: featured left, contacts right */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .contacts-column {
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .contacts-column {
+                max-height: none;
+            }
+        }
+
+        /* Bearing in detail panel */
+        .bearing-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bearing-deg {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .bearing-card {
+            font-size: 0.85rem;
+            color: var(--secondary);
+        }
+
+        /* Bearing column in list */
+        .bearing-tag {
+            font-size: 0.7rem;
+            color: var(--secondary);
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            padding: 2px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        /* ===== FEATURE 1: Emergency Squawk Banner ===== */
+        #emergency-banner {
+            display: none;
+            width: 100%;
+            margin-bottom: 14px;
+        }
+
+        .emergency-alert {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 4px;
+            border: 2px solid;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .emergency-alert:last-child { margin-bottom: 0; }
+
+        /* 7500 hijack — flashing red */
+        .emergency-alert.sq-7500 {
+            background: rgba(255, 30, 30, 0.18);
+            border-color: #ff1e1e;
+            color: #ff7070;
+            animation: flash-red 1s ease-in-out infinite;
+        }
+
+        @keyframes flash-red {
+            0%, 100% { background: rgba(255, 30, 30, 0.18); box-shadow: none; }
+            50%       { background: rgba(255, 30, 30, 0.42); box-shadow: 0 0 20px #ff1e1e; }
+        }
+
+        /* 7700 general emergency — solid red */
+        .emergency-alert.sq-7700 {
+            background: rgba(255, 68, 68, 0.18);
+            border-color: var(--danger);
+            color: #ff8888;
+        }
+
+        /* 7600 radio failure — orange */
+        .emergency-alert.sq-7600 {
+            background: rgba(255, 140, 0, 0.15);
+            border-color: #ff8c00;
+            color: #ffb347;
+        }
+
+        .emergency-icon { font-size: 1.6rem; flex-shrink: 0; }
+
+        .emergency-body { flex: 1; }
+
+        .emergency-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .emergency-detail { font-size: 0.8rem; opacity: 0.9; }
+
+        /* ===== FEATURE 2: Day/Night toggle button ===== */
+        #daynight-toggle {
+            font-size: 1.3rem;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            transition: border-color 0.3s;
+            line-height: 1;
+        }
+
+        #daynight-toggle:hover { border-color: var(--text-dim); }
+
+        #daynight-toggle.override-active {
+            border-color: var(--warning);
+            box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+        }
+
+        /* ===== FEATURE 3: Aircraft class color coding ===== */
+
+        /* Featured panel border tints */
+        .featured-panel.class-military {
+            border-color: #c9a227;
+            box-shadow: 0 0 16px rgba(201, 162, 39, 0.18);
+        }
+        .featured-panel.class-military .panel-header {
+            background: rgba(201, 162, 39, 0.10);
+            border-bottom-color: #c9a227;
+        }
+
+        .featured-panel.class-heavy {
+            border-color: var(--secondary);
+            box-shadow: 0 0 16px rgba(0, 204, 255, 0.13);
+        }
+        .featured-panel.class-heavy .panel-header {
+            background: rgba(0, 204, 255, 0.07);
+            border-bottom-color: var(--secondary);
+        }
+
+        .featured-panel.class-emergency {
+            border-color: var(--danger);
+            box-shadow: 0 0 16px rgba(255, 68, 68, 0.18);
+        }
+        .featured-panel.class-emergency .panel-header {
+            background: rgba(255, 68, 68, 0.08);
+            border-bottom-color: var(--danger);
+        }
+
+        /* Featured callsign color by class */
+        .featured-callsign.class-military {
+            color: #f0c040;
+            text-shadow: 0 0 24px rgba(240, 192, 64, 0.45);
+        }
+        .featured-callsign.class-heavy {
+            color: var(--secondary);
+            text-shadow: 0 0 24px rgba(0, 204, 255, 0.45);
+        }
+        .featured-callsign.class-emergency {
+            color: var(--danger);
+            text-shadow: 0 0 24px rgba(255, 68, 68, 0.45);
+        }
+
+        /* Badges in featured panel */
+        .class-badge-featured {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.78rem;
+            padding: 4px 10px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .class-badge-featured.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge-featured.heavy {
+            background: rgba(0, 204, 255, 0.13);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* Contacts list row color coding */
+        .aircraft-item {
+            border-left: 3px solid transparent;
+        }
+
+        .aircraft-item.class-military {
+            border-left-color: #c9a227;
+        }
+        .aircraft-item.class-military .aircraft-item-callsign {
+            color: #f0c040;
+        }
+
+        .aircraft-item.class-heavy {
+            border-left-color: var(--secondary);
+        }
+        .aircraft-item.class-heavy .aircraft-item-callsign {
+            color: var(--secondary);
+        }
+
+        .aircraft-item.class-emergency {
+            border-left-color: var(--danger);
+        }
+        .aircraft-item.class-emergency .aircraft-item-callsign {
+            color: var(--danger);
+        }
+
+        /* Keep selected highlight readable on top of class tints */
+        .aircraft-item.selected.class-military,
+        .aircraft-item.selected.class-heavy,
+        .aircraft-item.selected.class-emergency {
+            background: rgba(0, 255, 136, 0.07);
+            border-left-color: var(--primary);
+        }
+
+        /* Small badges in contacts list */
+        .class-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.62rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+        .class-badge.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge.heavy {
+            background: rgba(0, 204, 255, 0.12);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -458,6 +788,9 @@
 </head>
 <body>
     <div class="container">
+        <!-- Feature 1: Emergency Squawk Banner -->
+        <div id="emergency-banner"></div>
+
         <header class="header">
             <div class="header-left">
                 <div class="logo">ADS-B RADAR</div>
@@ -467,7 +800,11 @@
                 </div>
                 <span id="demo-badge"></span>
             </div>
-            <div class="header-right">
+            <div class="header-right" style="align-items:center;">
+                <button id="radar-toggle-btn" title="Toggle radar display">⬤ RADAR</button>
+                <!-- Feature 2: Day/Night indicator & manual override -->
+                <span id="daynight-toggle" title="Click to override day/night mode">&#9728;</span>
+
                 <div class="threshold-control">
                     <label>Max Age</label>
                     <input type="range" id="threshold-slider" min="10" max="300" step="10" value="120">
@@ -484,8 +821,23 @@
             </div>
         </header>
 
+        <!-- Radar modal overlay (opens on tap, auto-closes after 15s) -->
+        <div id="radar-modal">
+            <div class="radar-modal-box">
+                <div class="radar-modal-header">
+                    <span class="radar-modal-title">RADAR — 15 mi</span>
+                    <span class="radar-modal-timer" id="radar-timer"></span>
+                    <span class="radar-close-btn" id="radar-close-btn" title="Close">✕</span>
+                </div>
+                <div class="radar-canvas-wrap" id="radar-canvas-wrap">
+                    <canvas id="radar-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main layout: featured detail left, contacts list right -->
         <div class="main-grid">
-            <div class="featured-panel">
+            <div class="featured-panel" id="featured-panel">
                 <div class="panel-header">
                     <span class="panel-title">Primary Target</span>
                     <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
@@ -498,13 +850,15 @@
                 </div>
             </div>
 
-            <div class="aircraft-list-panel">
-                <div class="panel-header">
-                    <span class="panel-title">All Contacts</span>
-                </div>
-                <div class="aircraft-list" id="aircraft-list">
-                    <div class="no-data">
-                        <div class="no-data-text">No contacts</div>
+            <div class="contacts-column">
+                <div class="aircraft-list-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">All Contacts</span>
+                    </div>
+                    <div class="aircraft-list" id="aircraft-list">
+                        <div class="no-data">
+                            <div class="no-data-text">No contacts</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -516,8 +870,520 @@
     </div>
 
     <script>
+        // ============================================================
+        //  FEATURE 1: Emergency Squawk Tracking
+        // ============================================================
+        const EMERGENCY_SQUAWKS = {
+            '7500': { label: 'HIJACK',         meaning: 'Aircraft is being hijacked',          severity: 'sq-7500', icon: '&#x1F6A8;' },
+            '7600': { label: 'RADIO FAILURE',  meaning: 'Loss of communications (NORDO)',       severity: 'sq-7600', icon: '&#x1F4E1;' },
+            '7700': { label: 'EMERGENCY',      meaning: 'General emergency declared',           severity: 'sq-7700', icon: '&#x1F198;' },
+        };
+
+        // keyed by icao_hex → { squawk, callsign, firstSeen }
+        let emergencySquawks = {};
+
+        function updateEmergencyTracker(aircraft) {
+            const nowMs = Date.now();
+            const activeHexes = new Set();
+
+            for (const ac of aircraft) {
+                const sq = String(ac.squawk || '');
+                if (EMERGENCY_SQUAWKS[sq]) {
+                    activeHexes.add(ac.icao_hex);
+                    if (!emergencySquawks[ac.icao_hex]) {
+                        emergencySquawks[ac.icao_hex] = {
+                            squawk: sq,
+                            callsign: ac.callsign,
+                            firstSeen: nowMs,
+                        };
+                    } else {
+                        // Update callsign in case it changed; preserve firstSeen
+                        emergencySquawks[ac.icao_hex].callsign = ac.callsign;
+                        emergencySquawks[ac.icao_hex].squawk = sq;
+                    }
+                }
+            }
+
+            // Auto-dismiss: remove any that are no longer active
+            for (const hex of Object.keys(emergencySquawks)) {
+                if (!activeHexes.has(hex)) {
+                    delete emergencySquawks[hex];
+                }
+            }
+
+            renderEmergencyBanner();
+        }
+
+        function formatDuration(ms) {
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + 's';
+            const m = Math.floor(s / 60), rs = s % 60;
+            if (m < 60) return m + 'm ' + rs + 's';
+            const h = Math.floor(m / 60), rm = m % 60;
+            return h + 'h ' + rm + 'm';
+        }
+
+        function renderEmergencyBanner() {
+            const banner = document.getElementById('emergency-banner');
+            const entries = Object.values(emergencySquawks);
+
+            if (entries.length === 0) {
+                banner.style.display = 'none';
+                banner.innerHTML = '';
+                return;
+            }
+
+            // Severity order: 7500 most urgent first
+            const order = { '7500': 0, '7700': 1, '7600': 2 };
+            entries.sort((a, b) => (order[a.squawk] ?? 9) - (order[b.squawk] ?? 9));
+
+            banner.style.display = 'block';
+            banner.innerHTML = entries.map(entry => {
+                const info = EMERGENCY_SQUAWKS[entry.squawk];
+                const dur = formatDuration(Date.now() - entry.firstSeen);
+                return `<div class="emergency-alert ${info.severity}">
+                    <span class="emergency-icon">${info.icon}</span>
+                    <div class="emergency-body">
+                        <div class="emergency-title">SQUAWK ${entry.squawk} &mdash; ${info.label} | ${entry.callsign}</div>
+                        <div class="emergency-detail">${info.meaning} &bull; Active for: <strong>${dur}</strong></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Keep durations updating every second
+        setInterval(() => {
+            if (Object.keys(emergencySquawks).length > 0) renderEmergencyBanner();
+        }, 1000);
+
+
+        // ============================================================
+        //  FEATURE 2: Auto-Dim at Night (NOAA Solar Calculation)
+        // ============================================================
+        const ANTENNA_LAT = 47.650923;
+        const ANTENNA_LON = -122.346385;
+
+        // NOAA solar calculation algorithm
+        // Returns { sunrise: Date, sunset: Date } in UTC (use local time comparison)
+        function calcSunriseSunset(lat, lon, date) {
+            const toRad = d => d * Math.PI / 180;
+            const toDeg = r => r * 180 / Math.PI;
+
+            const JD = date.getTime() / 86400000 + 2440587.5;
+            const T  = (JD - 2451545.0) / 36525.0;
+
+            const L0 = (280.46646 + T * (36000.76983 + T * 0.0003032)) % 360;
+            const M  = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+            const C  = Math.sin(toRad(M)) * (1.914602 - T * (0.004817 + 0.000014 * T))
+                     + Math.sin(toRad(2 * M)) * (0.019993 - 0.000101 * T)
+                     + Math.sin(toRad(3 * M)) * 0.000289;
+            const sunLon  = L0 + C;
+            const omega   = 125.04 - 1934.136 * T;
+            const lambda  = sunLon - 0.00569 - 0.00478 * Math.sin(toRad(omega));
+            const eps0    = 23.0 + (26.0 + (21.448 - T * (46.8150 + T * (0.00059 - T * 0.001813))) / 60.0) / 60.0;
+            const epsilon = eps0 + 0.00256 * Math.cos(toRad(omega));
+            const sinDec  = Math.sin(toRad(epsilon)) * Math.sin(toRad(lambda));
+            const dec     = toDeg(Math.asin(sinDec));
+            const y       = Math.tan(toRad(epsilon / 2)) ** 2;
+            const ecc     = 0.016708634;
+            const eot     = 4 * toDeg(
+                y * Math.sin(2 * toRad(L0))
+                - 2 * ecc * Math.sin(toRad(M))
+                + 4 * ecc * y * Math.sin(toRad(M)) * Math.cos(2 * toRad(L0))
+                - 0.5 * y * y * Math.sin(4 * toRad(L0))
+                - 1.25 * ecc * ecc * Math.sin(2 * toRad(M))
+            );
+
+            const cosHA = (Math.cos(toRad(90.833)) - Math.sin(toRad(lat)) * Math.sin(toRad(dec)))
+                        / (Math.cos(toRad(lat)) * Math.cos(toRad(dec)));
+
+            // Polar day/night edge cases
+            if (cosHA <= -1) return { sunrise: new Date(date.setHours(0,0,0,0)), sunset: new Date(date.setHours(23,59,59,0)) };
+            if (cosHA >=  1) return { sunrise: null, sunset: null };
+
+            const HA          = toDeg(Math.acos(cosHA));
+            const solarNoonUTC = 720 - 4 * lon - eot;
+            const sunriseUTC  = solarNoonUTC - 4 * HA;
+            const sunsetUTC   = solarNoonUTC + 4 * HA;
+
+            const sod = new Date(date); sod.setUTCHours(0, 0, 0, 0);
+            return {
+                sunrise: new Date(sod.getTime() + sunriseUTC * 60000),
+                sunset:  new Date(sod.getTime() + sunsetUTC  * 60000),
+            };
+        }
+
+        let isNightMode   = false;
+        let dayNightOverride = false;
+
+        function applyDimMode(night) {
+            document.body.style.filter = night ? 'brightness(0.4)' : 'brightness(1)';
+            const toggle = document.getElementById('daynight-toggle');
+            if (toggle) toggle.textContent = night ? '\u263E' : '\u2600';
+        }
+
+        function checkDayNight() {
+            const now = new Date();
+            const { sunrise, sunset } = calcSunriseSunset(ANTENNA_LAT, ANTENNA_LON, new Date(now));
+            let shouldBeNight = false;
+            if (sunrise && sunset) {
+                shouldBeNight = now < sunrise || now > sunset;
+            }
+
+            if (dayNightOverride) {
+                // Cancel override when natural switch point is reached
+                if (shouldBeNight !== isNightMode) {
+                    dayNightOverride = false;
+                    document.getElementById('daynight-toggle').classList.remove('override-active');
+                    isNightMode = shouldBeNight;
+                    applyDimMode(isNightMode);
+                }
+                // else remain in forced-day state
+            } else {
+                if (shouldBeNight !== isNightMode) {
+                    isNightMode = shouldBeNight;
+                    applyDimMode(isNightMode);
+                }
+            }
+        }
+
+        document.getElementById('daynight-toggle').addEventListener('click', () => {
+            dayNightOverride = true;
+            isNightMode = !isNightMode;     // toggle between dim and bright
+            const toggle = document.getElementById('daynight-toggle');
+            toggle.classList.add('override-active');
+            applyDimMode(isNightMode);
+        });
+
+        // Initial check + recalculate every minute
+        checkDayNight();
+        setInterval(checkDayNight, 60000);
+
+
+        // ============================================================
+        //  FEATURE 3 helper: resolve effective display class
+        // ============================================================
+        function getAircraftDisplayClass(ac) {
+            const sq = String(ac.squawk || '');
+            if (EMERGENCY_SQUAWKS[sq]) return 'emergency';
+            if (ac.aircraft_class === 'military') return 'military';
+            if (ac.aircraft_class === 'heavy')    return 'heavy';
+            return 'normal';
+        }
+
+
+        // ============================================================
+        //  Core dashboard state
+        // ============================================================
         let selectedIndex = 0;
         let aircraftData = [];
+
+        // Antenna location — must match app.py
+        const HOME_LAT = 47.650923;
+        const HOME_LON = -122.346385;
+
+        // ── Radar Map ─────────────────────────────────────────────────────────
+        const RANGE_RINGS_MI = [5, 10, 15];
+        const MAX_RANGE_MI = 15;
+        // Miles per degree latitude (constant); miles per degree longitude varies
+        const MI_PER_DEG_LAT = 69.0;
+
+        function milesPerDegLon(lat) {
+            return MI_PER_DEG_LAT * Math.cos(lat * Math.PI / 180);
+        }
+
+        function latLonToCanvas(lat, lon, cx, cy, scale) {
+            // scale = pixels per mile
+            const dy = (lat - HOME_LAT) * MI_PER_DEG_LAT;     // north positive
+            const dx = (lon - HOME_LON) * milesPerDegLon(HOME_LAT); // east positive
+            return {
+                x: cx + dx * scale,
+                y: cy - dy * scale   // canvas y inverts north
+            };
+        }
+
+        function getAircraftColor(ac) {
+            if (ac.aircraft_class === 'military') return '#ffd700';   // gold
+            if (ac.aircraft_class === 'heavy')    return '#00ccff';   // cyan
+            return '#e0e0e0';                                          // light gray
+        }
+
+        function drawRadar() {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+            // Skip drawing when modal is hidden (canvas has 0 dimensions)
+            const modal = document.getElementById('radar-modal');
+            if (modal && !modal.classList.contains('visible')) return;
+
+            // Keep canvas square, fill wrapper width
+            const wrap = document.getElementById('radar-canvas-wrap');
+            const size = wrap.clientWidth;
+            canvas.width  = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+
+            const cx = size / 2;
+            const cy = size / 2;
+            // scale: pixels per mile — fit MAX_RANGE_MI into half the canvas with a small margin
+            const scale = (size / 2 - 20) / MAX_RANGE_MI;
+
+            // Background
+            ctx.fillStyle = '#060d10';
+            ctx.fillRect(0, 0, size, size);
+
+            // Subtle grid lines (N/S/E/W cross-hairs)
+            ctx.strokeStyle = 'rgba(0,255,136,0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, size);
+            ctx.moveTo(0, cy); ctx.lineTo(size, cy);
+            ctx.stroke();
+
+            // Range rings
+            RANGE_RINGS_MI.forEach(r => {
+                const px = r * scale;
+                ctx.beginPath();
+                ctx.arc(cx, cy, px, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(0,255,136,0.25)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Label at top of ring
+                ctx.fillStyle = 'rgba(0,255,136,0.5)';
+                ctx.font = `${Math.max(9, size * 0.022)}px "Share Tech Mono", monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillText(r + ' mi', cx, cy - px + 12);
+            });
+
+            // Compass rose tick marks
+            const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            const outerR = MAX_RANGE_MI * scale;
+            ctx.fillStyle = 'rgba(0,255,136,0.6)';
+            ctx.font = `bold ${Math.max(9, size * 0.025)}px "Share Tech Mono", monospace`;
+            cardinals.forEach((label, i) => {
+                const angle = (i * 45 - 90) * Math.PI / 180;
+                const lx = cx + (outerR + 14) * Math.cos(angle);
+                const ly = cy + (outerR + 14) * Math.sin(angle);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, lx, ly);
+            });
+
+            // Coastline — simplified Puget Sound shoreline segments
+            // Each sub-array is a polyline of [lat, lon] points
+            const COASTLINE = [
+                // East shore of Puget Sound (Seattle waterfront up through Shoreline)
+                [[47.495, -122.370], [47.520, -122.360], [47.545, -122.345],
+                 [47.560, -122.350], [47.580, -122.355], [47.600, -122.370],
+                 [47.615, -122.380], [47.620, -122.375], [47.630, -122.370],
+                 [47.645, -122.365], [47.660, -122.370], [47.680, -122.380],
+                 [47.700, -122.370], [47.720, -122.365], [47.740, -122.355],
+                 [47.760, -122.345], [47.780, -122.340], [47.800, -122.350]],
+                // West shore — Bainbridge/Kitsap Peninsula eastern coast
+                [[47.500, -122.510], [47.530, -122.520], [47.560, -122.530],
+                 [47.580, -122.525], [47.600, -122.520], [47.620, -122.515],
+                 [47.640, -122.510], [47.660, -122.505], [47.680, -122.500],
+                 [47.700, -122.495], [47.720, -122.490], [47.740, -122.485],
+                 [47.760, -122.480], [47.780, -122.475], [47.800, -122.470]],
+                // Lake Washington west shore
+                [[47.510, -122.265], [47.530, -122.260], [47.555, -122.255],
+                 [47.575, -122.260], [47.600, -122.265], [47.620, -122.270],
+                 [47.640, -122.275], [47.660, -122.280], [47.680, -122.275],
+                 [47.700, -122.265], [47.720, -122.255], [47.735, -122.250]],
+                // Lake Washington east shore
+                [[47.510, -122.220], [47.530, -122.215], [47.555, -122.210],
+                 [47.575, -122.205], [47.600, -122.200], [47.620, -122.200],
+                 [47.640, -122.205], [47.660, -122.210], [47.680, -122.215],
+                 [47.700, -122.210], [47.720, -122.205], [47.735, -122.200]],
+            ];
+
+            ctx.strokeStyle = 'rgba(0,150,200,0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'round';
+            COASTLINE.forEach(segment => {
+                ctx.beginPath();
+                segment.forEach((pt, j) => {
+                    const p = latLonToCanvas(pt[0], pt[1], cx, cy, scale);
+                    if (j === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+            });
+
+            // Fill water areas with subtle blue between shore pairs
+            ctx.fillStyle = 'rgba(0,80,140,0.08)';
+
+            // Antenna centre dot
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#00ff88';
+            ctx.fill();
+
+            // Aircraft
+            const dotRadius = Math.max(4, size * 0.012);
+            const labelFont = `${Math.max(8, size * 0.022)}px "Share Tech Mono", monospace`;
+
+            aircraftData.forEach((ac, i) => {
+                if (ac.lat == null || ac.lon == null) return;
+
+                const pos = latLonToCanvas(ac.lat, ac.lon, cx, cy, scale);
+
+                // Skip if outside visible range (with a small buffer)
+                const distPx = Math.hypot(pos.x - cx, pos.y - cy);
+                if (distPx > outerR + 10) return;
+
+                const color = getAircraftColor(ac);
+                const isSelected = (i === selectedIndex);
+
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+
+                // Draw triangle pointing in heading direction (or fallback dot)
+                const heading = ac.heading;
+                if (heading != null) {
+                    const headRad = (heading - 90) * Math.PI / 180;
+                    const tipLen = dotRadius * 2.2;
+                    const baseW  = dotRadius * 1.4;
+                    ctx.rotate(headRad);
+                    ctx.beginPath();
+                    ctx.moveTo(tipLen, 0);
+                    ctx.lineTo(-baseW, -baseW * 0.7);
+                    ctx.lineTo(-baseW * 0.5, 0);
+                    ctx.lineTo(-baseW, baseW * 0.7);
+                    ctx.closePath();
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (isSelected) {
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, dotRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (isSelected) {
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+
+                // Callsign label — only draw if not too crowded (basic check)
+                const callsign = ac.callsign || '';
+                if (callsign && size > 200) {
+                    ctx.font = labelFont;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = isSelected ? '#fff' : 'rgba(200,210,220,0.75)';
+                    ctx.fillText(callsign, pos.x + dotRadius * 2.5, pos.y - dotRadius);
+                }
+            });
+        }
+
+        // Hit-test: find aircraft closest to a canvas click
+        function radarHitTest(canvasX, canvasY) {
+            const canvas = document.getElementById('radar-canvas');
+            const size = canvas.width;
+            const cx = size / 2;
+            const cy = size / 2;
+            const scale = (size / 2 - 20) / MAX_RANGE_MI;
+
+            let bestIdx = -1;
+            let bestDist = 18; // pixels — tap target radius
+
+            aircraftData.forEach((ac, i) => {
+                if (ac.lat == null || ac.lon == null) return;
+                const pos = latLonToCanvas(ac.lat, ac.lon, cx, cy, scale);
+                const d = Math.hypot(canvasX - pos.x, canvasY - pos.y);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                }
+            });
+            return bestIdx;
+        }
+
+        function initRadarCanvas() {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+
+            function resizeCanvas() {
+                const wrap = document.getElementById('radar-canvas-wrap');
+                if (wrap) wrap.style.height = wrap.clientWidth + 'px';
+                drawRadar();
+            }
+            window.addEventListener('resize', resizeCanvas);
+
+            // Modal open/close with 15-second auto-dismiss
+            const modal = document.getElementById('radar-modal');
+            const toggleBtn = document.getElementById('radar-toggle-btn');
+            const closeBtn = document.getElementById('radar-close-btn');
+            const timerEl = document.getElementById('radar-timer');
+            let autoCloseTimer = null;
+            let countdownInterval = null;
+            let secondsLeft = 0;
+
+            function startAutoClose() {
+                clearTimeout(autoCloseTimer);
+                clearInterval(countdownInterval);
+                secondsLeft = 15;
+                timerEl.textContent = secondsLeft + 's';
+                countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    timerEl.textContent = secondsLeft > 0 ? secondsLeft + 's' : '';
+                }, 1000);
+                autoCloseTimer = setTimeout(closeRadar, 15000);
+            }
+
+            function resetAutoClose() {
+                if (modal.classList.contains('visible')) startAutoClose();
+            }
+
+            function openRadar() {
+                modal.classList.add('visible');
+                toggleBtn.classList.add('active');
+                setTimeout(resizeCanvas, 30);
+                startAutoClose();
+            }
+
+            function closeRadar() {
+                modal.classList.remove('visible');
+                toggleBtn.classList.remove('active');
+                clearTimeout(autoCloseTimer);
+                clearInterval(countdownInterval);
+                timerEl.textContent = '';
+            }
+
+            toggleBtn.addEventListener('click', () => {
+                modal.classList.contains('visible') ? closeRadar() : openRadar();
+            });
+            closeBtn.addEventListener('click', closeRadar);
+            modal.addEventListener('click', e => { if (e.target === modal) closeRadar(); });
+
+            // Any interaction inside the radar resets the 15s timer
+            const modalBox = modal.querySelector('.radar-modal-box');
+            modalBox.addEventListener('click', resetAutoClose);
+            modalBox.addEventListener('touchstart', resetAutoClose);
+
+            // Click / tap to select aircraft
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width  / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const cx = (e.clientX - rect.left)  * scaleX;
+                const cy = (e.clientY - rect.top)   * scaleY;
+                const idx = radarHitTest(cx, cy);
+                if (idx >= 0) {
+                    selectAircraft(idx);
+                }
+            });
+        }
 
         function formatAlt(alt) {
             if (alt === null || alt === undefined) return '---';
@@ -565,8 +1431,26 @@
             const ownerDisplay = ac.owner || '---';
             const vertClass = getVerticalClass(ac.vertical_status);
 
+            // Feature 3: apply class tint to featured panel border
+            const displayClass = getAircraftDisplayClass(ac);
+            const panel = document.getElementById('featured-panel');
+            if (panel) {
+                panel.className = 'featured-panel' +
+                    (displayClass !== 'normal' ? ' class-' + displayClass : '');
+            }
+
+            // Class badge for military/heavy
+            let classBadgeHtml = '';
+            if (ac.aircraft_class === 'military') {
+                classBadgeHtml = '<span class="class-badge-featured mil">MIL</span>';
+            } else if (ac.aircraft_class === 'heavy') {
+                classBadgeHtml = '<span class="class-badge-featured heavy">HEAVY</span>';
+            }
+
+            const callsignColorClass = displayClass !== 'normal' ? ' class-' + displayClass : '';
+
             return `
-                <div class="featured-callsign">${ac.callsign}</div>
+                <div class="featured-callsign${callsignColorClass}">${ac.callsign}${classBadgeHtml}</div>
                 <div class="featured-airline">${ac.airline || 'Unknown Operator'}</div>
                 ${typeDisplay !== '---' ? `<div class="featured-aircraft-type">${typeDisplay}</div>` : ''}
 
@@ -627,6 +1511,14 @@
                         <span class="value">${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
                     </div>
                     <div class="detail-item">
+                        <span class="label">Bearing</span>
+                        <span class="value">
+                            ${ac.bearing_deg != null
+                                ? `<span class="bearing-deg">${ac.bearing_deg}&deg;</span> <span class="bearing-card">${ac.bearing_cardinal16 || ac.bearing_cardinal || ''}</span>`
+                                : '---'}
+                        </span>
+                    </div>
+                    <div class="detail-item">
                         <span class="label">Coordinates</span>
                         <span class="value">${ac.lat != null ? ac.lat.toFixed(4) + '°, ' + ac.lon.toFixed(4) + '°' : '---'}</span>
                     </div>
@@ -652,10 +1544,25 @@
                 const isSelected = i === selectedIndex;
                 const typeDisplay = ac.typecode || '';
 
+                // Feature 3: class-based row styling
+                const displayClass = getAircraftDisplayClass(ac);
+                const itemClasses = [
+                    'aircraft-item',
+                    isSelected ? 'selected' : '',
+                    displayClass !== 'normal' ? 'class-' + displayClass : '',
+                ].filter(Boolean).join(' ');
+
+                let badgeHtml = '';
+                if (ac.aircraft_class === 'military') {
+                    badgeHtml = '<span class="class-badge mil">MIL</span>';
+                } else if (ac.aircraft_class === 'heavy') {
+                    badgeHtml = '<span class="class-badge heavy">HEAVY</span>';
+                }
+
                 return `
-                    <div class="aircraft-item ${isSelected ? 'selected' : ''}" onclick="selectAircraft(${i})">
+                    <div class="${itemClasses}" onclick="selectAircraft(${i})">
                         <div class="aircraft-item-header">
-                            <span class="aircraft-item-callsign">${ac.callsign}</span>
+                            <span class="aircraft-item-callsign">${ac.callsign}${badgeHtml}</span>
                             ${typeDisplay ? `<span class="aircraft-item-type">${typeDisplay}</span>` : ''}
                         </div>
                         <div class="aircraft-item-stats">
@@ -663,6 +1570,7 @@
                                 <span class="icon">◎</span>
                                 <span>${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
                             </div>
+                            ${ac.bearing_deg != null ? `<div class="aircraft-item-stat"><span class="bearing-tag">${Math.round(ac.bearing_deg)}&deg;&nbsp;${ac.bearing_cardinal || ''}</span></div>` : ''}
                             <div class="aircraft-item-stat">
                                 <span class="icon">↕</span>
                                 <span>${formatAlt(ac.altitude_baro)} ft</span>
@@ -693,6 +1601,8 @@
             if (featured) {
                 document.getElementById('featured-seen').textContent = `Last seen: ${featured.seen}s ago`;
             }
+
+            drawRadar();
         }
 
         function updateDashboard(data) {
@@ -724,6 +1634,9 @@
                 document.querySelector('.logo').textContent = data.dashboard_title;
             }
 
+            // Feature 1: update emergency squawk tracker on every data cycle
+            updateEmergencyTracker(aircraftData);
+
             updateDisplay();
         }
 
@@ -741,10 +1654,10 @@
                 .catch(err => {
                     console.error('Fetch error:', err);
                     fetchFailures++;
-                    if (fetchFailures >= 3) {
+                    if (fetchFailures >= 5) {
                         updateDashboard({ error: 'Connection failed — retrying…' });
-                    } else {
-                        // Show subtle indicator without wiping the display
+                    } else if (fetchFailures >= 3) {
+                        // Show subtle indicator only after 3 consecutive misses
                         let indicator = document.getElementById('connection-indicator');
                         if (!indicator) {
                             indicator = document.createElement('div');
@@ -780,6 +1693,9 @@
                 slider.value = d.seen_threshold;
                 thresholdDisplay.textContent = d.seen_threshold;
             });
+
+        // Initialize radar canvas
+        initRadarCanvas();
 
         // Initial fetch
         fetchData();
