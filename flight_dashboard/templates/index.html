@@ -31,6 +31,9 @@
             color: #e6edf3;
             min-height: 100vh;
             overflow-x: hidden;
+            /* Feature 2: auto-dim smooth 60-second transition */
+            transition: filter 60s linear;
+            filter: brightness(1);
         }
 
         /* Scanline effect */
@@ -128,19 +131,6 @@
             color: var(--text-dim);
             font-size: 0.7rem;
             text-transform: uppercase;
-        }
-
-        /* Main Grid */
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 20px;
-        }
-
-        @media (max-width: 1000px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
         }
 
         /* Featured Aircraft Panel */
@@ -437,6 +427,281 @@
             margin-left: 10px;
         }
 
+        /* Radar Map */
+        .radar-map-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .radar-canvas-wrap {
+            position: relative;
+            width: 100%;
+            /* height set by JS to keep it square */
+        }
+
+        #radar-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* Top-level layout: radar left, right column (featured + list) */
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .top-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Bearing in detail panel */
+        .bearing-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bearing-deg {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .bearing-card {
+            font-size: 0.85rem;
+            color: var(--secondary);
+        }
+
+        /* Bearing column in list */
+        .bearing-tag {
+            font-size: 0.7rem;
+            color: var(--secondary);
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            padding: 2px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        /* ===== FEATURE 1: Emergency Squawk Banner ===== */
+        #emergency-banner {
+            display: none;
+            width: 100%;
+            margin-bottom: 14px;
+        }
+
+        .emergency-alert {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 4px;
+            border: 2px solid;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .emergency-alert:last-child { margin-bottom: 0; }
+
+        /* 7500 hijack — flashing red */
+        .emergency-alert.sq-7500 {
+            background: rgba(255, 30, 30, 0.18);
+            border-color: #ff1e1e;
+            color: #ff7070;
+            animation: flash-red 1s ease-in-out infinite;
+        }
+
+        @keyframes flash-red {
+            0%, 100% { background: rgba(255, 30, 30, 0.18); box-shadow: none; }
+            50%       { background: rgba(255, 30, 30, 0.42); box-shadow: 0 0 20px #ff1e1e; }
+        }
+
+        /* 7700 general emergency — solid red */
+        .emergency-alert.sq-7700 {
+            background: rgba(255, 68, 68, 0.18);
+            border-color: var(--danger);
+            color: #ff8888;
+        }
+
+        /* 7600 radio failure — orange */
+        .emergency-alert.sq-7600 {
+            background: rgba(255, 140, 0, 0.15);
+            border-color: #ff8c00;
+            color: #ffb347;
+        }
+
+        .emergency-icon { font-size: 1.6rem; flex-shrink: 0; }
+
+        .emergency-body { flex: 1; }
+
+        .emergency-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .emergency-detail { font-size: 0.8rem; opacity: 0.9; }
+
+        /* ===== FEATURE 2: Day/Night toggle button ===== */
+        #daynight-toggle {
+            font-size: 1.3rem;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            transition: border-color 0.3s;
+            line-height: 1;
+        }
+
+        #daynight-toggle:hover { border-color: var(--text-dim); }
+
+        #daynight-toggle.override-active {
+            border-color: var(--warning);
+            box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+        }
+
+        /* ===== FEATURE 3: Aircraft class color coding ===== */
+
+        /* Featured panel border tints */
+        .featured-panel.class-military {
+            border-color: #c9a227;
+            box-shadow: 0 0 16px rgba(201, 162, 39, 0.18);
+        }
+        .featured-panel.class-military .panel-header {
+            background: rgba(201, 162, 39, 0.10);
+            border-bottom-color: #c9a227;
+        }
+
+        .featured-panel.class-heavy {
+            border-color: var(--secondary);
+            box-shadow: 0 0 16px rgba(0, 204, 255, 0.13);
+        }
+        .featured-panel.class-heavy .panel-header {
+            background: rgba(0, 204, 255, 0.07);
+            border-bottom-color: var(--secondary);
+        }
+
+        .featured-panel.class-emergency {
+            border-color: var(--danger);
+            box-shadow: 0 0 16px rgba(255, 68, 68, 0.18);
+        }
+        .featured-panel.class-emergency .panel-header {
+            background: rgba(255, 68, 68, 0.08);
+            border-bottom-color: var(--danger);
+        }
+
+        /* Featured callsign color by class */
+        .featured-callsign {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .featured-callsign.class-military {
+            color: #f0c040;
+            text-shadow: 0 0 24px rgba(240, 192, 64, 0.45);
+        }
+        .featured-callsign.class-heavy {
+            color: var(--secondary);
+            text-shadow: 0 0 24px rgba(0, 204, 255, 0.45);
+        }
+        .featured-callsign.class-emergency {
+            color: var(--danger);
+            text-shadow: 0 0 24px rgba(255, 68, 68, 0.45);
+        }
+
+        /* Badges in featured panel */
+        .class-badge-featured {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.78rem;
+            padding: 4px 10px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .class-badge-featured.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge-featured.heavy {
+            background: rgba(0, 204, 255, 0.13);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* Contacts list row color coding */
+        .aircraft-item {
+            border-left: 3px solid transparent;
+        }
+
+        .aircraft-item.class-military {
+            border-left-color: #c9a227;
+        }
+        .aircraft-item.class-military .aircraft-item-callsign {
+            color: #f0c040;
+        }
+
+        .aircraft-item.class-heavy {
+            border-left-color: var(--secondary);
+        }
+        .aircraft-item.class-heavy .aircraft-item-callsign {
+            color: var(--secondary);
+        }
+
+        .aircraft-item.class-emergency {
+            border-left-color: var(--danger);
+        }
+        .aircraft-item.class-emergency .aircraft-item-callsign {
+            color: var(--danger);
+        }
+
+        /* Keep selected highlight readable on top of class tints */
+        .aircraft-item.selected.class-military,
+        .aircraft-item.selected.class-heavy,
+        .aircraft-item.selected.class-emergency {
+            background: rgba(0, 255, 136, 0.07);
+            border-left-color: var(--primary);
+        }
+
+        /* Small badges in contacts list */
+        .class-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.62rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+        .class-badge.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge.heavy {
+            background: rgba(0, 204, 255, 0.12);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -458,6 +723,9 @@
 </head>
 <body>
     <div class="container">
+        <!-- Feature 1: Emergency Squawk Banner -->
+        <div id="emergency-banner"></div>
+
         <header class="header">
             <div class="header-left">
                 <div class="logo">ADS-B RADAR</div>
@@ -467,7 +735,10 @@
                 </div>
                 <span id="demo-badge"></span>
             </div>
-            <div class="header-right">
+            <div class="header-right" style="align-items:center;">
+                <!-- Feature 2: Day/Night indicator & manual override -->
+                <span id="daynight-toggle" title="Click to override day/night mode">&#9728;</span>
+
                 <div class="threshold-control">
                     <label>Max Age</label>
                     <input type="range" id="threshold-slider" min="10" max="300" step="10" value="120">
@@ -484,27 +755,41 @@
             </div>
         </header>
 
-        <div class="main-grid">
-            <div class="featured-panel">
+        <div class="top-grid">
+            <!-- Left: Radar Map -->
+            <div class="radar-map-panel">
                 <div class="panel-header">
-                    <span class="panel-title">Primary Target</span>
-                    <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
+                    <span class="panel-title">Radar Display</span>
+                    <span id="radar-range-label" style="color: var(--text-dim); font-size: 0.75rem;">100 mi range</span>
                 </div>
-                <div class="featured-content" id="featured-content">
-                    <div class="no-data">
-                        <div class="radar-sweep"></div>
-                        <div class="no-data-text">Scanning for aircraft...</div>
-                    </div>
+                <div class="radar-canvas-wrap" id="radar-canvas-wrap">
+                    <canvas id="radar-canvas"></canvas>
                 </div>
             </div>
 
-            <div class="aircraft-list-panel">
-                <div class="panel-header">
-                    <span class="panel-title">All Contacts</span>
+            <!-- Right: Featured + List -->
+            <div class="right-column">
+                <div class="featured-panel" id="featured-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Primary Target</span>
+                        <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
+                    </div>
+                    <div class="featured-content" id="featured-content">
+                        <div class="no-data">
+                            <div class="radar-sweep"></div>
+                            <div class="no-data-text">Scanning for aircraft...</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="aircraft-list" id="aircraft-list">
-                    <div class="no-data">
-                        <div class="no-data-text">No contacts</div>
+
+                <div class="aircraft-list-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">All Contacts</span>
+                    </div>
+                    <div class="aircraft-list" id="aircraft-list">
+                        <div class="no-data">
+                            <div class="no-data-text">No contacts</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -518,6 +803,217 @@
     <script>
         let selectedIndex = 0;
         let aircraftData = [];
+
+        // Antenna location — must match app.py
+        const HOME_LAT = 47.650923;
+        const HOME_LON = -122.346385;
+
+        // ── Radar Map ─────────────────────────────────────────────────────────
+        const RANGE_RINGS_MI = [25, 50, 75, 100];
+        const MAX_RANGE_MI = 100;
+        // Miles per degree latitude (constant); miles per degree longitude varies
+        const MI_PER_DEG_LAT = 69.0;
+
+        function milesPerDegLon(lat) {
+            return MI_PER_DEG_LAT * Math.cos(lat * Math.PI / 180);
+        }
+
+        function latLonToCanvas(lat, lon, cx, cy, scale) {
+            // scale = pixels per mile
+            const dy = (lat - HOME_LAT) * MI_PER_DEG_LAT;     // north positive
+            const dx = (lon - HOME_LON) * milesPerDegLon(HOME_LAT); // east positive
+            return {
+                x: cx + dx * scale,
+                y: cy - dy * scale   // canvas y inverts north
+            };
+        }
+
+        function getAircraftColor(ac) {
+            if (ac.aircraft_class === 'military') return '#ffd700';   // gold
+            if (ac.aircraft_class === 'heavy')    return '#00ccff';   // cyan
+            return '#e0e0e0';                                          // light gray
+        }
+
+        function drawRadar() {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+
+            // Keep canvas square, fill wrapper width
+            const wrap = document.getElementById('radar-canvas-wrap');
+            const size = wrap.clientWidth;
+            canvas.width  = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+
+            const cx = size / 2;
+            const cy = size / 2;
+            // scale: pixels per mile — fit MAX_RANGE_MI into half the canvas with a small margin
+            const scale = (size / 2 - 20) / MAX_RANGE_MI;
+
+            // Background
+            ctx.fillStyle = '#060d10';
+            ctx.fillRect(0, 0, size, size);
+
+            // Subtle grid lines (N/S/E/W cross-hairs)
+            ctx.strokeStyle = 'rgba(0,255,136,0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, size);
+            ctx.moveTo(0, cy); ctx.lineTo(size, cy);
+            ctx.stroke();
+
+            // Range rings
+            RANGE_RINGS_MI.forEach(r => {
+                const px = r * scale;
+                ctx.beginPath();
+                ctx.arc(cx, cy, px, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(0,255,136,0.25)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Label at top of ring
+                ctx.fillStyle = 'rgba(0,255,136,0.5)';
+                ctx.font = `${Math.max(9, size * 0.022)}px "Share Tech Mono", monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillText(r + ' mi', cx, cy - px + 12);
+            });
+
+            // Compass rose tick marks
+            const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            const outerR = MAX_RANGE_MI * scale;
+            ctx.fillStyle = 'rgba(0,255,136,0.6)';
+            ctx.font = `bold ${Math.max(9, size * 0.025)}px "Share Tech Mono", monospace`;
+            cardinals.forEach((label, i) => {
+                const angle = (i * 45 - 90) * Math.PI / 180;
+                const lx = cx + (outerR + 14) * Math.cos(angle);
+                const ly = cy + (outerR + 14) * Math.sin(angle);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, lx, ly);
+            });
+
+            // Antenna centre dot
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#00ff88';
+            ctx.fill();
+
+            // Aircraft
+            const dotRadius = Math.max(4, size * 0.012);
+            const labelFont = `${Math.max(8, size * 0.022)}px "Share Tech Mono", monospace`;
+
+            aircraftData.forEach((ac, i) => {
+                if (ac.lat == null || ac.lon == null) return;
+
+                const pos = latLonToCanvas(ac.lat, ac.lon, cx, cy, scale);
+
+                // Skip if outside visible range (with a small buffer)
+                const distPx = Math.hypot(pos.x - cx, pos.y - cy);
+                if (distPx > outerR + 10) return;
+
+                const color = getAircraftColor(ac);
+                const isSelected = (i === selectedIndex);
+
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+
+                // Draw triangle pointing in heading direction (or fallback dot)
+                const heading = ac.heading;
+                if (heading != null) {
+                    const headRad = (heading - 90) * Math.PI / 180;
+                    const tipLen = dotRadius * 2.2;
+                    const baseW  = dotRadius * 1.4;
+                    ctx.rotate(headRad);
+                    ctx.beginPath();
+                    ctx.moveTo(tipLen, 0);
+                    ctx.lineTo(-baseW, -baseW * 0.7);
+                    ctx.lineTo(-baseW * 0.5, 0);
+                    ctx.lineTo(-baseW, baseW * 0.7);
+                    ctx.closePath();
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (isSelected) {
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, dotRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (isSelected) {
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+
+                // Callsign label — only draw if not too crowded (basic check)
+                const callsign = ac.callsign || '';
+                if (callsign && size > 200) {
+                    ctx.font = labelFont;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = isSelected ? '#fff' : 'rgba(200,210,220,0.75)';
+                    ctx.fillText(callsign, pos.x + dotRadius * 2.5, pos.y - dotRadius);
+                }
+            });
+        }
+
+        // Hit-test: find aircraft closest to a canvas click
+        function radarHitTest(canvasX, canvasY) {
+            const canvas = document.getElementById('radar-canvas');
+            const size = canvas.width;
+            const cx = size / 2;
+            const cy = size / 2;
+            const scale = (size / 2 - 20) / MAX_RANGE_MI;
+
+            let bestIdx = -1;
+            let bestDist = 18; // pixels — tap target radius
+
+            aircraftData.forEach((ac, i) => {
+                if (ac.lat == null || ac.lon == null) return;
+                const pos = latLonToCanvas(ac.lat, ac.lon, cx, cy, scale);
+                const d = Math.hypot(canvasX - pos.x, canvasY - pos.y);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                }
+            });
+            return bestIdx;
+        }
+
+        function initRadarCanvas() {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+
+            // Resize canvas height to match width (square)
+            function resizeCanvas() {
+                const wrap = document.getElementById('radar-canvas-wrap');
+                wrap.style.height = wrap.clientWidth + 'px';
+                drawRadar();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Click / tap to select aircraft
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width  / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const cx = (e.clientX - rect.left)  * scaleX;
+                const cy = (e.clientY - rect.top)   * scaleY;
+                const idx = radarHitTest(cx, cy);
+                if (idx >= 0) {
+                    selectAircraft(idx);
+                }
+            });
+        }
 
         function formatAlt(alt) {
             if (alt === null || alt === undefined) return '---';
@@ -627,6 +1123,14 @@
                         <span class="value">${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
                     </div>
                     <div class="detail-item">
+                        <span class="label">Bearing</span>
+                        <span class="value">
+                            ${ac.bearing_deg != null
+                                ? `<span class="bearing-deg">${ac.bearing_deg}&deg;</span> <span class="bearing-card">${ac.bearing_cardinal16 || ac.bearing_cardinal || ''}</span>`
+                                : '---'}
+                        </span>
+                    </div>
+                    <div class="detail-item">
                         <span class="label">Coordinates</span>
                         <span class="value">${ac.lat != null ? ac.lat.toFixed(4) + '°, ' + ac.lon.toFixed(4) + '°' : '---'}</span>
                     </div>
@@ -663,6 +1167,7 @@
                                 <span class="icon">◎</span>
                                 <span>${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
                             </div>
+                            ${ac.bearing_deg != null ? `<div class="aircraft-item-stat"><span class="bearing-tag">${Math.round(ac.bearing_deg)}&deg;&nbsp;${ac.bearing_cardinal || ''}</span></div>` : ''}
                             <div class="aircraft-item-stat">
                                 <span class="icon">↕</span>
                                 <span>${formatAlt(ac.altitude_baro)} ft</span>
@@ -693,6 +1198,8 @@
             if (featured) {
                 document.getElementById('featured-seen').textContent = `Last seen: ${featured.seen}s ago`;
             }
+
+            drawRadar();
         }
 
         function updateDashboard(data) {
@@ -780,6 +1287,9 @@
                 slider.value = d.seen_threshold;
                 thresholdDisplay.textContent = d.seen_threshold;
             });
+
+        // Initialize radar canvas
+        initRadarCanvas();
 
         // Initial fetch
         fetchData();
