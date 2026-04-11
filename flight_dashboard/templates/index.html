@@ -33,9 +33,6 @@
             overflow-x: hidden;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            /* Feature 2: auto-dim smooth 60-second transition */
-            transition: filter 60s linear;
-            filter: brightness(1);
         }
 
         /* Scanline effect */
@@ -553,7 +550,7 @@
             .threshold-control label { font-size: 0.55rem; }
             .threshold-value { font-size: 0.65rem; }
             #radar-toggle-btn { padding: 2px 6px; font-size: 0.6rem; }
-            #daynight-toggle { font-size: 0.9rem; padding: 1px 4px; }
+
             .main-grid { gap: 4px; grid-template-columns: 1fr 220px; }
             .featured-panel .panel-header,
             .aircraft-list-panel .panel-header { padding: 3px 8px; }
@@ -655,25 +652,6 @@
 
         .emergency-detail { font-size: 0.8rem; opacity: 0.9; }
 
-        /* ===== FEATURE 2: Day/Night toggle button ===== */
-        #daynight-toggle {
-            font-size: 1.3rem;
-            cursor: pointer;
-            user-select: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            transition: border-color 0.3s;
-            line-height: 1;
-        }
-
-        #daynight-toggle:hover { border-color: var(--text-dim); }
-
-        #daynight-toggle.override-active {
-            border-color: var(--warning);
-            box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
-        }
 
         /* ===== FEATURE 3: Aircraft class color coding ===== */
 
@@ -828,8 +806,6 @@
             </div>
             <div class="header-right" style="align-items:center;">
                 <button id="radar-toggle-btn" title="Toggle radar display">⬤ RADAR</button>
-                <!-- Feature 2: Day/Night indicator & manual override -->
-                <span id="daynight-toggle" title="Click to override day/night mode">&#9728;</span>
 
                 <div class="threshold-control">
                     <label>Max Age</label>
@@ -981,109 +957,6 @@
         setInterval(() => {
             if (Object.keys(emergencySquawks).length > 0) renderEmergencyBanner();
         }, 1000);
-
-
-        // ============================================================
-        //  FEATURE 2: Auto-Dim at Night (NOAA Solar Calculation)
-        // ============================================================
-        const ANTENNA_LAT = 47.650923;
-        const ANTENNA_LON = -122.346385;
-
-        // NOAA solar calculation algorithm
-        // Returns { sunrise: Date, sunset: Date } in UTC (use local time comparison)
-        function calcSunriseSunset(lat, lon, date) {
-            const toRad = d => d * Math.PI / 180;
-            const toDeg = r => r * 180 / Math.PI;
-
-            const JD = date.getTime() / 86400000 + 2440587.5;
-            const T  = (JD - 2451545.0) / 36525.0;
-
-            const L0 = (280.46646 + T * (36000.76983 + T * 0.0003032)) % 360;
-            const M  = 357.52911 + T * (35999.05029 - 0.0001537 * T);
-            const C  = Math.sin(toRad(M)) * (1.914602 - T * (0.004817 + 0.000014 * T))
-                     + Math.sin(toRad(2 * M)) * (0.019993 - 0.000101 * T)
-                     + Math.sin(toRad(3 * M)) * 0.000289;
-            const sunLon  = L0 + C;
-            const omega   = 125.04 - 1934.136 * T;
-            const lambda  = sunLon - 0.00569 - 0.00478 * Math.sin(toRad(omega));
-            const eps0    = 23.0 + (26.0 + (21.448 - T * (46.8150 + T * (0.00059 - T * 0.001813))) / 60.0) / 60.0;
-            const epsilon = eps0 + 0.00256 * Math.cos(toRad(omega));
-            const sinDec  = Math.sin(toRad(epsilon)) * Math.sin(toRad(lambda));
-            const dec     = toDeg(Math.asin(sinDec));
-            const y       = Math.tan(toRad(epsilon / 2)) ** 2;
-            const ecc     = 0.016708634;
-            const eot     = 4 * toDeg(
-                y * Math.sin(2 * toRad(L0))
-                - 2 * ecc * Math.sin(toRad(M))
-                + 4 * ecc * y * Math.sin(toRad(M)) * Math.cos(2 * toRad(L0))
-                - 0.5 * y * y * Math.sin(4 * toRad(L0))
-                - 1.25 * ecc * ecc * Math.sin(2 * toRad(M))
-            );
-
-            const cosHA = (Math.cos(toRad(90.833)) - Math.sin(toRad(lat)) * Math.sin(toRad(dec)))
-                        / (Math.cos(toRad(lat)) * Math.cos(toRad(dec)));
-
-            // Polar day/night edge cases
-            if (cosHA <= -1) return { sunrise: new Date(date.setHours(0,0,0,0)), sunset: new Date(date.setHours(23,59,59,0)) };
-            if (cosHA >=  1) return { sunrise: null, sunset: null };
-
-            const HA          = toDeg(Math.acos(cosHA));
-            const solarNoonUTC = 720 - 4 * lon - eot;
-            const sunriseUTC  = solarNoonUTC - 4 * HA;
-            const sunsetUTC   = solarNoonUTC + 4 * HA;
-
-            const sod = new Date(date); sod.setUTCHours(0, 0, 0, 0);
-            return {
-                sunrise: new Date(sod.getTime() + sunriseUTC * 60000),
-                sunset:  new Date(sod.getTime() + sunsetUTC  * 60000),
-            };
-        }
-
-        let isNightMode   = false;
-        let dayNightOverride = false;
-
-        function applyDimMode(night) {
-            document.body.style.filter = night ? 'brightness(0.4)' : 'brightness(1)';
-            const toggle = document.getElementById('daynight-toggle');
-            if (toggle) toggle.textContent = night ? '\u263E' : '\u2600';
-        }
-
-        function checkDayNight() {
-            const now = new Date();
-            const { sunrise, sunset } = calcSunriseSunset(ANTENNA_LAT, ANTENNA_LON, new Date(now));
-            let shouldBeNight = false;
-            if (sunrise && sunset) {
-                shouldBeNight = now < sunrise || now > sunset;
-            }
-
-            if (dayNightOverride) {
-                // Cancel override when natural switch point is reached
-                if (shouldBeNight !== isNightMode) {
-                    dayNightOverride = false;
-                    document.getElementById('daynight-toggle').classList.remove('override-active');
-                    isNightMode = shouldBeNight;
-                    applyDimMode(isNightMode);
-                }
-                // else remain in forced-day state
-            } else {
-                if (shouldBeNight !== isNightMode) {
-                    isNightMode = shouldBeNight;
-                    applyDimMode(isNightMode);
-                }
-            }
-        }
-
-        document.getElementById('daynight-toggle').addEventListener('click', () => {
-            dayNightOverride = true;
-            isNightMode = !isNightMode;     // toggle between dim and bright
-            const toggle = document.getElementById('daynight-toggle');
-            toggle.classList.add('override-active');
-            applyDimMode(isNightMode);
-        });
-
-        // Initial check + recalculate every minute
-        checkDayNight();
-        setInterval(checkDayNight, 60000);
 
 
         // ============================================================
@@ -1757,6 +1630,10 @@
                     <div class="detail-item">
                         <span class="label">Signal (dBFS)</span>
                         <span class="value">${ac.rssi ? ac.rssi.toFixed(1) : '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Distance</span>
+                        <span class="value">${ac.distance_mi != null ? ac.distance_mi.toFixed(1) + ' mi' : '---'}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Messages</span>
