@@ -977,9 +977,9 @@
         let selectedIndex = 0;
         let aircraftData = [];
 
-        // Antenna location — must match app.py
-        const HOME_LAT = 0.0;
-        const HOME_LON = 0.0;
+        // Antenna location, injected by app.py from HOME_LAT / HOME_LON (null if unset)
+        const HOME_LAT = {{ home_lat | tojson }};
+        const HOME_LON = {{ home_lon | tojson }};
 
         // ── Radar Map ─────────────────────────────────────────────────────────
         const RANGE_RINGS_MI = [5, 10, 15];
@@ -993,6 +993,7 @@
 
         function latLonToCanvas(lat, lon, cx, cy, scale) {
             // scale = pixels per mile
+            if (HOME_LAT === null || HOME_LON === null) return { x: -9999, y: -9999 };
             const dy = (lat - HOME_LAT) * MI_PER_DEG_LAT;     // north positive
             const dx = (lon - HOME_LON) * milesPerDegLon(HOME_LAT); // east positive
             return {

@@ -17,14 +17,42 @@ from pathlib import Path
 
 app = Flask(__name__)
 
+def _load_dotenv(path):
+    """Minimal .env loader (KEY=VALUE lines) so the app needs no extra dependency."""
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ.setdefault(key.strip(), value.strip().strip('"\''))
+    except FileNotFoundError:
+        pass
+
+
+def _env_float(name):
+    value = os.environ.get(name, '').strip()
+    try:
+        return float(value) if value else None
+    except ValueError:
+        return None
+
+
+_load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+
 # Configuration
 DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
 seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 120))
 DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Dave's ADS-B Radar")
 
-# Antenna location (Shoreline, WA)
-HOME_LAT = 0.0
-HOME_LON = 0.0
+# Antenna location: set HOME_LAT / HOME_LON in the environment or in .env
+# (kept out of source so the antenna's position isn't published).
+HOME_LAT = _env_float('HOME_LAT')
+HOME_LON = _env_float('HOME_LON')
+HOME_SET = HOME_LAT is not None and HOME_LON is not None
+if not HOME_SET:
+    print("WARNING: HOME_LAT/HOME_LON not set; distance and bearing will be blank. "
+          "Copy .env.example to .env and fill them in.")
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 AIRCRAFT_DB_FILE = os.path.join(DATA_DIR, 'aircraft_db.json')
 DUMP1090_DIR = "/run/dump1090"
@@ -252,10 +280,13 @@ def enrich_aircraft(aircraft):
         # Computed fields
         ac['airline'] = get_airline_name(callsign) or db_info.get('owner') or None
         ac['age'] = calculate_age(db_info.get('built'))
-        ac['distance_mi'] = haversine_distance(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
-
-        # Bearing from antenna to aircraft
-        bearing_deg, bearing_card8, bearing_card16 = calculate_bearing(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+        if HOME_SET:
+            ac['distance_mi'] = haversine_distance(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+            # Bearing from antenna to aircraft
+            bearing_deg, bearing_card8, bearing_card16 = calculate_bearing(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+        else:
+            ac['distance_mi'] = None
+            bearing_deg = bearing_card8 = bearing_card16 = None
         ac['bearing_deg'] = bearing_deg
         ac['bearing_cardinal'] = bearing_card8    # 8-point for list
         ac['bearing_cardinal16'] = bearing_card16  # 16-point for detail panel
@@ -325,7 +356,7 @@ def enrich_aircraft(aircraft):
 @app.route('/')
 def index():
     """Main dashboard page"""
-    return render_template('index.html')
+    return render_template('index.html', home_lat=HOME_LAT, home_lon=HOME_LON)
 
 @app.route('/api/aircraft')
 def api_aircraft():

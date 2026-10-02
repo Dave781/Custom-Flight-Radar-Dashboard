@@ -34,12 +34,17 @@ To use this dashboard at your own location, you need to update three things:
 
 ### 1. Set your antenna coordinates
 
-Edit `flight_dashboard/app.py` and change these two lines:
+Copy the example env file and fill in your antenna's coordinates:
 
-```python
-HOME_LAT = 0.0    # ← your antenna latitude
-HOME_LON = 0.0  # ← your antenna longitude
+```bash
+cd flight_dashboard
+cp .env.example .env
+# then edit .env:
+HOME_LAT=your_antenna_latitude
+HOME_LON=your_antenna_longitude
 ```
+
+`.env` is gitignored, so your location never gets committed. You can also set `HOME_LAT` / `HOME_LON` as regular environment variables (for example in the systemd unit).
 
 ### 2. Update the radar coastline
 

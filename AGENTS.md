@@ -39,27 +39,27 @@ RTL-SDR dongle
 
 ## Configurable Values
 
-All can be set via environment variables or edited directly in `app.py`:
+All are set via environment variables, or in `flight_dashboard/.env` (gitignored; see `.env.example`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DASHBOARD_TITLE` | `Dave's ADS-B Radar` | Title shown in browser tab and header |
-| `HOME_LAT` | `0.0` | Antenna latitude (hardcoded in app.py) |
-| `HOME_LON` | `0.0` | Antenna longitude (hardcoded in app.py) |
+| `HOME_LAT` | *(required)* | Antenna latitude |
+| `HOME_LON` | *(required)* | Antenna longitude |
 | `SEEN_THRESHOLD` | `120` | Max seconds since last contact to show aircraft |
 | `PORT` | `8080` | Web server port |
 | `DEMO_MODE` | `false` | Use built-in sample data instead of live dump1090 |
 
-To change `HOME_LAT`/`HOME_LON`, edit them directly in `app.py` — they are not env-var controlled.
+`HOME_LAT`/`HOME_LON` are read from the environment so the antenna's location is never committed. If unset, distance and bearing show `---` and the radar map can't place aircraft. Never hardcode real coordinates in this public repo.
 
 ## Location-Specific Customization
 
 When setting this up for a new location, three things must be updated:
 
-### 1. Antenna coordinates in `app.py`
-```python
-HOME_LAT = your_latitude
-HOME_LON = your_longitude
+### 1. Antenna coordinates in `.env`
+```bash
+HOME_LAT=your_latitude
+HOME_LON=your_longitude
 ```
 
 ### 2. Coastline data in `templates/index.html`
@@ -122,10 +122,12 @@ The frontend applies gold styling for MIL, cyan for HEAVY, and red for emergency
    venv/bin/python3 download_db.py  # downloads aircraft database (~5 min)
    ```
 
-5. **Set your antenna location** — edit `flight_dashboard/app.py`:
-   ```python
-   HOME_LAT = 0.0   # your latitude
-   HOME_LON = 0.0  # your longitude
+5. **Set your antenna location** — create `flight_dashboard/.env`:
+   ```bash
+   cp .env.example .env
+   # edit .env:
+   HOME_LAT=your_latitude
+   HOME_LON=your_longitude
    ```
 
 6. **Update coastline** — edit `flight_dashboard/templates/index.html`:
