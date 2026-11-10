@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#0b1017">
+    <title>{{ title }}</title>
+    <link rel="preload" href="/static/fonts/ui/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
+    <link rel="stylesheet" href="/static/css/app.css?v={{ v }}">
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Receiver and emergency alerts -->
+    <div id="alerts" role="status" aria-live="polite"></div>
+
+    <!-- Flight card: the selected aircraft -->
+    <aside id="card" hidden>
+        <a id="photo" target="_blank" rel="noopener" hidden>
+            <img id="photo-img" alt="">
+            <span id="photo-by"></span>
+        </a>
+        <div id="silhouette" aria-hidden="true"></div>
+        <div id="card-body">
+            <div class="id-row">
+                <h1 id="callsign"></h1>
+                <span id="badge" hidden></span>
+                <button id="pin" type="button" title="Unpin" aria-label="Unpin" hidden>
+                    <svg viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3v2h-4.2v6L12 21l-.8-1v-6H7v-2l3-3z"/></svg>
+                </button>
+            </div>
+            <p id="who"></p>
+            <div id="route" hidden>
+                <b id="route-from"></b>
+                <span class="route-line"><svg viewBox="0 0 32 32"><path d="M16 2.2c.9 0 1.6 1.5 1.6 3.6v6.3l10.9 6.6c.3.2.5.5.5.9v1.2c0 .3-.3.5-.6.4l-10.8-3.3v6.1l3.1 2.4c.2.2.3.4.3.7v.9c0 .3-.3.5-.6.4L16 27.2l-4.4 1.6c-.3.1-.6-.1-.6-.4v-.9c0-.3.1-.5.3-.7l3.1-2.4v-6.1L3.6 21.6c-.3.1-.6-.1-.6-.4V20c0-.4.2-.7.5-.9l10.9-6.6V5.8c0-2.1.7-3.6 1.6-3.6z"/></svg></span>
+                <b id="route-to"></b>
+            </div>
+            <div class="metrics">
+                <div class="metric" title="Altitude">
+                    <span class="num" id="alt"></span><span class="unit">ft</span><span id="vs" class="vs"></span>
+                </div>
+                <div class="metric" title="Ground speed">
+                    <span class="num" id="spd"></span><span class="unit">kt</span>
+                </div>
+                <div class="metric" id="look" title="Where to look">
+                    <svg id="compass" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10.5"/>
+                        <path id="compass-arrow" d="M12 3.5l3.2 8.5H8.8z"/>
+                    </svg>
+                    <span class="num" id="look-dir"></span><span class="unit" id="look-up"></span>
+                </div>
+            </div>
+            <dl id="more" hidden>
+                <div><dt>Tail</dt><dd id="m-reg"></dd></div>
+                <div><dt>Built</dt><dd id="m-age"></dd></div>
+                <div><dt>Squawk</dt><dd id="m-squawk"></dd></div>
+                <div><dt>Climb</dt><dd id="m-vrate"></dd></div>
+                <div><dt>Heading</dt><dd id="m-heading"></dd></div>
+                <div><dt>Distance</dt><dd id="m-dist"></dd></div>
+            </dl>
+            <button id="more-btn" type="button" aria-expanded="false" aria-controls="more" aria-label="More details">
+                <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Shown when the sky is empty -->
+    <div id="empty" hidden>No planes in range</div>
+
+    <!-- Today's numbers -->
+    <div id="today" hidden>
+        <div class="stat" title="Planes seen today">
+            <svg viewBox="0 0 32 32"><path d="M16 2.2c.9 0 1.6 1.5 1.6 3.6v6.3l10.9 6.6c.3.2.5.5.5.9v1.2c0 .3-.3.5-.6.4l-10.8-3.3v6.1l3.1 2.4c.2.2.3.4.3.7v.9c0 .3-.3.5-.6.4L16 27.2l-4.4 1.6c-.3.1-.6-.1-.6-.4v-.9c0-.3.1-.5.3-.7l3.1-2.4v-6.1L3.6 21.6c-.3.1-.6-.1-.6-.4V20c0-.4.2-.7.5-.9l10.9-6.6V5.8c0-2.1.7-3.6 1.6-3.6z"/></svg>
+            <span class="num" id="t-count"></span>
+        </div>
+        <div class="stat" id="t-far-box" title="Farthest today">
+            <svg viewBox="0 0 24 24" class="line"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/></svg>
+            <span class="num" id="t-far"></span><span class="unit">mi</span>
+        </div>
+        <div class="stat" id="t-high-box" title="Highest today">
+            <svg viewBox="0 0 24 24" class="line"><path d="M4 21h16M12 17V4M6.5 9.5L12 4l5.5 5.5"/></svg>
+            <span class="num" id="t-high"></span><span class="unit">ft</span>
+        </div>
+        <div class="stat" id="t-fast-box" title="Fastest today">
+            <svg viewBox="0 0 24 24" class="line"><path d="M3 17a9 9 0 1 1 18 0M12 17l4.5-6.5"/></svg>
+            <span class="num" id="t-fast"></span><span class="unit">kt</span>
+        </div>
+    </div>
+
+    <!-- Altitude color key -->
+    <div id="legend" aria-hidden="true"><span>0</span><i></i><span>40k ft</span></div>
+
+    <!-- Map tools -->
+    <div id="tools">
+        <a id="btn-close" href="/" title="Back to the list" aria-label="Back to the list">
+            <svg viewBox="0 0 24 24" class="line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </a>
+        <button id="btn-home" type="button" title="Recenter" aria-label="Recenter">
+            <svg viewBox="0 0 24 24" class="line"><circle cx="12" cy="12" r="6.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.5" class="fill"/></svg>
+        </button>
+        <button id="btn-dim" type="button" title="Night dimming" aria-label="Night dimming">
+            <svg viewBox="0 0 24 24" class="line"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+            <span id="dim-mode">A</span>
+        </button>
+        <a id="btn-debug" href="/debug" title="Details and settings" aria-label="Details and settings">
+            <svg viewBox="0 0 24 24" class="line"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+        </a>
+    </div>
+
+    <div id="dim" aria-hidden="true"></div>
+
+    <script>window.RADAR_CONFIG = {{ config|tojson }};</script>
+    <script src="/static/vendor/pmtiles.js"></script>
+    <script type="module" src="/static/js/app.js?v={{ v }}"></script>
+</body>
+</html>

@@ -65,6 +65,7 @@ MAP_RANGE_MI = float(os.environ.get('MAP_RANGE_MI', 25))      # miles from the a
 RANGE_RINGS_MI = [float(x) for x in os.environ.get('RANGE_RINGS_MI', '5,10,20').split(',') if x.strip()]
 TRAIL_SECONDS = int(os.environ.get('TRAIL_SECONDS', 300))
 STALL_SECONDS = int(os.environ.get('STALL_SECONDS', 180))     # no new messages for this long = receiver stalled
+MAP_CLOSE_SECONDS = int(os.environ.get('MAP_CLOSE_SECONDS', 60))   # untouched map returns to the main view; 0 = stay open
 
 # Route and photo lookups (adsbdb.com, planespotters.net). Set LOOKUPS=false to stay offline.
 LOOKUPS_ENABLED = os.environ.get('LOOKUPS', 'true').lower() == 'true'
@@ -370,13 +371,19 @@ def client_config():
         'has_airports': os.path.exists(AIRPORTS_FILE),
         'lookups': LOOKUPS_ENABLED,
         'demo_mode': DEMO_MODE,
+        'close_seconds': MAP_CLOSE_SECONDS,
     }
 
 
 @app.route('/')
 def index():
-    """Main dashboard page"""
-    return render_template('index.html', title=DASHBOARD_TITLE, config=client_config(), v=asset_version())
+    """Main view: the primary target and the list of all contacts"""
+    return render_template('index.html')
+
+@app.route('/map')
+def map_view():
+    """Expanded view: the live map, opened from the MAP button on the main view"""
+    return render_template('map.html', title=DASHBOARD_TITLE, config=client_config(), v=asset_version())
 
 @app.route('/debug')
 def debug():

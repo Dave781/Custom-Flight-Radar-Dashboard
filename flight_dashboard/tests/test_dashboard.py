@@ -187,7 +187,15 @@ class Api(unittest.TestCase):
         cls.client = dashboard.app.test_client()
 
     def test_pages(self):
-        self.assertEqual(self.client.get('/').status_code, 200)
+        home = self.client.get('/')
+        self.assertEqual(home.status_code, 200)
+        self.assertIn(b'Primary Target', home.data)
+        self.assertIn(b'href="/map"', home.data)          # the MAP button
+        self.assertNotIn(b'googleapis', home.data)        # fonts are served from here
+        expanded = self.client.get('/map')
+        self.assertEqual(expanded.status_code, 200)
+        self.assertIn(b'id="btn-close" href="/"', expanded.data)
+        self.assertIn(b'"close_seconds"', expanded.data)
         self.assertEqual(self.client.get('/debug').status_code, 200)
 
     def test_aircraft(self):

@@ -2,113 +2,1236 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-    <meta name="theme-color" content="#0b1017">
-    <title>{{ title }}</title>
-    <link rel="preload" href="/static/fonts/ui/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-    <link rel="stylesheet" href="/static/css/app.css?v={{ v }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dave's ADS-B Radar</title>
+    <style>
+        @font-face { font-family: 'Share Tech Mono'; font-weight: 400; font-display: swap;
+                     src: url('/static/fonts/ui/share-tech-mono-latin-400-normal.woff2') format('woff2'); }
+        @font-face { font-family: 'Orbitron'; font-weight: 400; font-display: swap;
+                     src: url('/static/fonts/ui/orbitron-latin-400-normal.woff2') format('woff2'); }
+        @font-face { font-family: 'Orbitron'; font-weight: 700; font-display: swap;
+                     src: url('/static/fonts/ui/orbitron-latin-700-normal.woff2') format('woff2'); }
+
+        :root {
+            --primary: #00ff88;
+            --secondary: #00ccff;
+            --warning: #ffaa00;
+            --danger: #ff4444;
+            --bg-dark: #0a0a0f;
+            --bg-panel: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text-dim: #6e7681;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--bg-dark);
+            color: #e6edf3;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1),
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-badge.down { border-color: var(--danger); color: var(--danger); }
+        .status-badge.down .status-dot { background: var(--danger); animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--primary); }
+            50% { opacity: 0.5; box-shadow: 0 0 15px var(--primary); }
+        }
+
+        .header-right {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat .value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+
+        .header-stat .label {
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        /* Featured Aircraft Panel */
+        .featured-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .featured-content {
+            padding: 25px;
+        }
+
+        .featured-callsign {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .featured-airline {
+            font-size: 1.1rem;
+            color: var(--secondary);
+            margin-bottom: 20px;
+        }
+
+        .featured-aircraft-type {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(0, 204, 255, 0.15);
+            border: 1px solid var(--secondary);
+            border-radius: 4px;
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .data-cell {
+            background: var(--bg-card);
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid var(--border);
+        }
+
+        .data-cell.highlight {
+            border-left-color: var(--primary);
+        }
+
+        .data-cell .value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .data-cell .label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-cell.climbing .value { color: var(--primary); }
+        .data-cell.descending .value { color: var(--warning); }
+        .data-cell.level .value { color: var(--secondary); }
+
+        /* Aircraft Details Section */
+        .aircraft-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .detail-item .label {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+
+        .detail-item .value {
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        /* Aircraft List */
+        .aircraft-list-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 140px);
+        }
+
+        .aircraft-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .aircraft-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .aircraft-item:hover {
+            background: var(--bg-card);
+        }
+
+        .aircraft-item.selected {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 3px solid var(--primary);
+        }
+
+        .aircraft-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .aircraft-item-callsign {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .aircraft-item-type {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            background: var(--bg-dark);
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .aircraft-item-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.75rem;
+        }
+
+        .aircraft-item-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .aircraft-item-stat .icon {
+            color: var(--text-dim);
+        }
+
+        .aircraft-item-stat.climbing { color: var(--primary); }
+        .aircraft-item-stat.descending { color: var(--warning); }
+        .aircraft-item-stat.level { color: var(--secondary); }
+
+        /* No Data State */
+        .no-data {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .no-data-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .no-data-text {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .radar-sweep {
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            position: relative;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .radar-sweep::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+            transform-origin: left center;
+            animation: sweep 2s linear infinite;
+        }
+
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error-banner {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            color: var(--danger);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 15px;
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            margin-top: 20px;
+        }
+
+        .threshold-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .threshold-control label {
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .threshold-control input[type=range] {
+            width: 80px;
+            accent-color: var(--primary);
+        }
+
+        .threshold-value {
+            color: var(--primary);
+            min-width: 40px;
+        }
+
+        .demo-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid var(--warning);
+            border-radius: 3px;
+            color: var(--warning);
+            font-size: 0.7rem;
+            margin-left: 10px;
+        }
+
+        /* Map button in header */
+        #map-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            transition: border-color 0.2s, color 0.2s;
+            user-select: none;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        #map-btn:hover, #map-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Main layout: featured left, contacts right */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .contacts-column {
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .contacts-column {
+                max-height: none;
+            }
+        }
+
+        /* 800x480 Pi touchscreen kiosk — no scroll, everything visible */
+        @media (max-height: 520px) {
+            body { overflow: hidden; }
+            body::before { display: none; }
+            .container { padding: 4px; max-height: 100vh; overflow: hidden; }
+            .header { padding: 4px 8px; margin-bottom: 4px; }
+            .logo { font-size: 0.85rem; }
+            .header-left { gap: 6px; }
+            .header-right { gap: 5px; }
+            .header-stat .value { font-size: 0.75rem; }
+            .header-stat .label { font-size: 0.5rem; }
+            .status-badge { padding: 2px 5px; font-size: 0.55rem; }
+            .threshold-control label { font-size: 0.55rem; }
+            .threshold-value { font-size: 0.65rem; }
+            #map-btn { padding: 2px 6px; font-size: 0.6rem; }
+
+            .main-grid { gap: 4px; grid-template-columns: 1fr 220px; }
+            .featured-panel .panel-header,
+            .aircraft-list-panel .panel-header { padding: 3px 8px; }
+            .panel-title { font-size: 0.6rem; }
+            .featured-callsign { font-size: 1.3rem; margin-bottom: 0; }
+            .featured-airline { font-size: 0.65rem; margin-bottom: 2px; }
+            .stat-grid { gap: 3px; }
+            .stat-box { padding: 3px 5px; }
+            .stat-box .value { font-size: 0.8rem; }
+            .stat-box .label { font-size: 0.45rem; }
+            /* Hide detail grid on small screen — keep only stat boxes */
+            .aircraft-details { display: none; }
+            .contacts-column { max-height: calc(100vh - 44px); overflow-y: auto; }
+            .aircraft-item { padding: 3px 6px; }
+            .aircraft-item .callsign { font-size: 0.7rem; }
+            .aircraft-item .metrics { font-size: 0.55rem; gap: 3px; }
+            .footer { display: none; }
+        }
+
+        /* Bearing in detail panel */
+        .bearing-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+
+        /* Bearing column in list */
+        .bearing-tag {
+            font-size: 0.7rem;
+            color: var(--secondary);
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            padding: 2px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        /* ===== FEATURE 1: Emergency Squawk Banner ===== */
+        #emergency-banner {
+            display: none;
+            width: 100%;
+            margin-bottom: 14px;
+        }
+
+        .emergency-alert {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 4px;
+            border: 2px solid;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .emergency-alert:last-child { margin-bottom: 0; }
+
+        /* 7500 hijack — flashing red */
+        .emergency-alert.sq-7500 {
+            background: rgba(255, 30, 30, 0.18);
+            border-color: #ff1e1e;
+            color: #ff7070;
+            animation: flash-red 1s ease-in-out infinite;
+        }
+
+        @keyframes flash-red {
+            0%, 100% { background: rgba(255, 30, 30, 0.18); box-shadow: none; }
+            50%       { background: rgba(255, 30, 30, 0.42); box-shadow: 0 0 20px #ff1e1e; }
+        }
+
+        /* 7700 general emergency — solid red */
+        .emergency-alert.sq-7700 {
+            background: rgba(255, 68, 68, 0.18);
+            border-color: var(--danger);
+            color: #ff8888;
+        }
+
+        /* 7600 radio failure — orange */
+        .emergency-alert.sq-7600 {
+            background: rgba(255, 140, 0, 0.15);
+            border-color: #ff8c00;
+            color: #ffb347;
+        }
+
+        .emergency-icon { font-size: 1.6rem; flex-shrink: 0; }
+
+        .emergency-body { flex: 1; }
+
+        .emergency-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .emergency-detail { font-size: 0.8rem; opacity: 0.9; }
+
+
+        /* ===== FEATURE 3: Aircraft class color coding ===== */
+
+        /* Featured panel border tints */
+        .featured-panel.class-military {
+            border-color: #c9a227;
+            box-shadow: 0 0 16px rgba(201, 162, 39, 0.18);
+        }
+        .featured-panel.class-military .panel-header {
+            background: rgba(201, 162, 39, 0.10);
+            border-bottom-color: #c9a227;
+        }
+
+        .featured-panel.class-heavy {
+            border-color: var(--secondary);
+            box-shadow: 0 0 16px rgba(0, 204, 255, 0.13);
+        }
+        .featured-panel.class-heavy .panel-header {
+            background: rgba(0, 204, 255, 0.07);
+            border-bottom-color: var(--secondary);
+        }
+
+        .featured-panel.class-emergency {
+            border-color: var(--danger);
+            box-shadow: 0 0 16px rgba(255, 68, 68, 0.18);
+        }
+        .featured-panel.class-emergency .panel-header {
+            background: rgba(255, 68, 68, 0.08);
+            border-bottom-color: var(--danger);
+        }
+
+        /* Featured callsign color by class */
+        .featured-callsign.class-military {
+            color: #f0c040;
+            text-shadow: 0 0 24px rgba(240, 192, 64, 0.45);
+        }
+        .featured-callsign.class-heavy {
+            color: var(--secondary);
+            text-shadow: 0 0 24px rgba(0, 204, 255, 0.45);
+        }
+        .featured-callsign.class-emergency {
+            color: var(--danger);
+            text-shadow: 0 0 24px rgba(255, 68, 68, 0.45);
+        }
+
+        /* Badges in featured panel */
+        .class-badge-featured {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.78rem;
+            padding: 4px 10px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .class-badge-featured.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge-featured.heavy {
+            background: rgba(0, 204, 255, 0.13);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* Contacts list row color coding */
+        .aircraft-item {
+            border-left: 3px solid transparent;
+        }
+
+        .aircraft-item.class-military {
+            border-left-color: #c9a227;
+        }
+        .aircraft-item.class-military .aircraft-item-callsign {
+            color: #f0c040;
+        }
+
+        .aircraft-item.class-heavy {
+            border-left-color: var(--secondary);
+        }
+        .aircraft-item.class-heavy .aircraft-item-callsign {
+            color: var(--secondary);
+        }
+
+        .aircraft-item.class-emergency {
+            border-left-color: var(--danger);
+        }
+        .aircraft-item.class-emergency .aircraft-item-callsign {
+            color: var(--danger);
+        }
+
+        /* Keep selected highlight readable on top of class tints */
+        .aircraft-item.selected.class-military,
+        .aircraft-item.selected.class-heavy,
+        .aircraft-item.selected.class-emergency {
+            background: rgba(0, 255, 136, 0.07);
+            border-left-color: var(--primary);
+        }
+
+        /* Small badges in contacts list */
+        .class-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.62rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+        .class-badge.mil {
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid #c9a227;
+            color: #f0c040;
+        }
+        .class-badge.heavy {
+            background: rgba(0, 204, 255, 0.12);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
+    </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div class="container">
+        <!-- Feature 1: Emergency Squawk Banner -->
+        <div id="emergency-banner"></div>
 
-    <!-- Receiver and emergency alerts -->
-    <div id="alerts" role="status" aria-live="polite"></div>
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">ADS-B RADAR</div>
+                <div class="status-badge" id="status-badge">
+                    <div class="status-dot"></div>
+                    <span id="status-text">RECEIVING</span>
+                </div>
+                <span id="demo-badge"></span>
+            </div>
+            <div class="header-right" style="align-items:center;">
+                <a id="map-btn" href="/map" title="Open the map">⬤ MAP</a>
 
-    <!-- Flight card: the selected aircraft -->
-    <aside id="card" hidden>
-        <a id="photo" target="_blank" rel="noopener" hidden>
-            <img id="photo-img" alt="">
-            <span id="photo-by"></span>
-        </a>
-        <div id="silhouette" aria-hidden="true"></div>
-        <div id="card-body">
-            <div class="id-row">
-                <h1 id="callsign"></h1>
-                <span id="badge" hidden></span>
-                <button id="pin" type="button" title="Unpin" aria-label="Unpin" hidden>
-                    <svg viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3v2h-4.2v6L12 21l-.8-1v-6H7v-2l3-3z"/></svg>
-                </button>
-            </div>
-            <p id="who"></p>
-            <div id="route" hidden>
-                <b id="route-from"></b>
-                <span class="route-line"><svg viewBox="0 0 32 32"><path d="M16 2.2c.9 0 1.6 1.5 1.6 3.6v6.3l10.9 6.6c.3.2.5.5.5.9v1.2c0 .3-.3.5-.6.4l-10.8-3.3v6.1l3.1 2.4c.2.2.3.4.3.7v.9c0 .3-.3.5-.6.4L16 27.2l-4.4 1.6c-.3.1-.6-.1-.6-.4v-.9c0-.3.1-.5.3-.7l3.1-2.4v-6.1L3.6 21.6c-.3.1-.6-.1-.6-.4V20c0-.4.2-.7.5-.9l10.9-6.6V5.8c0-2.1.7-3.6 1.6-3.6z"/></svg></span>
-                <b id="route-to"></b>
-            </div>
-            <div class="metrics">
-                <div class="metric" title="Altitude">
-                    <span class="num" id="alt"></span><span class="unit">ft</span><span id="vs" class="vs"></span>
+                <div class="threshold-control">
+                    <label>Max Age</label>
+                    <input type="range" id="threshold-slider" min="10" max="300" step="10" value="120">
+                    <span class="threshold-value"><span id="threshold-display">60</span>s</span>
                 </div>
-                <div class="metric" title="Ground speed">
-                    <span class="num" id="spd"></span><span class="unit">kt</span>
+                <div class="header-stat">
+                    <div class="value" id="aircraft-count">-</div>
+                    <div class="label">Aircraft</div>
                 </div>
-                <div class="metric" id="look" title="Where to look">
-                    <svg id="compass" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10.5"/>
-                        <path id="compass-arrow" d="M12 3.5l3.2 8.5H8.8z"/>
-                    </svg>
-                    <span class="num" id="look-dir"></span><span class="unit" id="look-up"></span>
+                <div class="header-stat">
+                    <div class="value" id="update-time">--:--:--</div>
+                    <div class="label">Updated</div>
                 </div>
             </div>
-            <dl id="more" hidden>
-                <div><dt>Tail</dt><dd id="m-reg"></dd></div>
-                <div><dt>Built</dt><dd id="m-age"></dd></div>
-                <div><dt>Squawk</dt><dd id="m-squawk"></dd></div>
-                <div><dt>Climb</dt><dd id="m-vrate"></dd></div>
-                <div><dt>Heading</dt><dd id="m-heading"></dd></div>
-                <div><dt>Distance</dt><dd id="m-dist"></dd></div>
-            </dl>
-            <button id="more-btn" type="button" aria-expanded="false" aria-controls="more" aria-label="More details">
-                <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-        </div>
-    </aside>
+        </header>
 
-    <!-- Shown when the sky is empty -->
-    <div id="empty" hidden>No planes in range</div>
+        <!-- Main layout: featured detail left, contacts list right -->
+        <div class="main-grid">
+            <div class="featured-panel" id="featured-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Primary Target</span>
+                    <span id="featured-seen" style="color: var(--text-dim); font-size: 0.75rem;"></span>
+                </div>
+                <div class="featured-content" id="featured-content">
+                    <div class="no-data">
+                        <div class="radar-sweep"></div>
+                        <div class="no-data-text">Scanning for aircraft...</div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Today's numbers -->
-    <div id="today" hidden>
-        <div class="stat" title="Planes seen today">
-            <svg viewBox="0 0 32 32"><path d="M16 2.2c.9 0 1.6 1.5 1.6 3.6v6.3l10.9 6.6c.3.2.5.5.5.9v1.2c0 .3-.3.5-.6.4l-10.8-3.3v6.1l3.1 2.4c.2.2.3.4.3.7v.9c0 .3-.3.5-.6.4L16 27.2l-4.4 1.6c-.3.1-.6-.1-.6-.4v-.9c0-.3.1-.5.3-.7l3.1-2.4v-6.1L3.6 21.6c-.3.1-.6-.1-.6-.4V20c0-.4.2-.7.5-.9l10.9-6.6V5.8c0-2.1.7-3.6 1.6-3.6z"/></svg>
-            <span class="num" id="t-count"></span>
+            <div class="contacts-column">
+                <div class="aircraft-list-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">All Contacts</span>
+                    </div>
+                    <div class="aircraft-list" id="aircraft-list">
+                        <div class="no-data">
+                            <div class="no-data-text">No contacts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="stat" id="t-far-box" title="Farthest today">
-            <svg viewBox="0 0 24 24" class="line"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/></svg>
-            <span class="num" id="t-far"></span><span class="unit">mi</span>
-        </div>
-        <div class="stat" id="t-high-box" title="Highest today">
-            <svg viewBox="0 0 24 24" class="line"><path d="M4 21h16M12 17V4M6.5 9.5L12 4l5.5 5.5"/></svg>
-            <span class="num" id="t-high"></span><span class="unit">ft</span>
-        </div>
-        <div class="stat" id="t-fast-box" title="Fastest today">
-            <svg viewBox="0 0 24 24" class="line"><path d="M3 17a9 9 0 1 1 18 0M12 17l4.5-6.5"/></svg>
-            <span class="num" id="t-fast"></span><span class="unit">kt</span>
+
+        <div class="footer">
+            ADS-B Flight Dashboard | Data from dump1090-fa | Refreshes every 2s
         </div>
     </div>
 
-    <!-- Altitude color key -->
-    <div id="legend" aria-hidden="true"><span>0</span><i></i><span>40k ft</span></div>
+    <script>
+        // ============================================================
+        //  FEATURE 1: Emergency Squawk Tracking
+        // ============================================================
+        const EMERGENCY_SQUAWKS = {
+            '7500': { label: 'HIJACK',         meaning: 'Aircraft is being hijacked',          severity: 'sq-7500', icon: '&#x1F6A8;' },
+            '7600': { label: 'RADIO FAILURE',  meaning: 'Loss of communications (NORDO)',       severity: 'sq-7600', icon: '&#x1F4E1;' },
+            '7700': { label: 'EMERGENCY',      meaning: 'General emergency declared',           severity: 'sq-7700', icon: '&#x1F198;' },
+        };
 
-    <!-- Map tools -->
-    <div id="tools">
-        <button id="btn-home" type="button" title="Recenter" aria-label="Recenter">
-            <svg viewBox="0 0 24 24" class="line"><circle cx="12" cy="12" r="6.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.5" class="fill"/></svg>
-        </button>
-        <button id="btn-dim" type="button" title="Night dimming" aria-label="Night dimming">
-            <svg viewBox="0 0 24 24" class="line"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-            <span id="dim-mode">A</span>
-        </button>
-        <a id="btn-debug" href="/debug" title="Details and settings" aria-label="Details and settings">
-            <svg viewBox="0 0 24 24" class="line"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
-        </a>
-    </div>
+        // keyed by icao_hex → { squawk, callsign, firstSeen }
+        let emergencySquawks = {};
 
-    <div id="dim" aria-hidden="true"></div>
+        function updateEmergencyTracker(aircraft) {
+            const nowMs = Date.now();
+            const activeHexes = new Set();
 
-    <script>window.RADAR_CONFIG = {{ config|tojson }};</script>
-    <script src="/static/vendor/pmtiles.js"></script>
-    <script type="module" src="/static/js/app.js?v={{ v }}"></script>
+            for (const ac of aircraft) {
+                const sq = String(ac.squawk || '');
+                if (EMERGENCY_SQUAWKS[sq]) {
+                    activeHexes.add(ac.icao_hex);
+                    if (!emergencySquawks[ac.icao_hex]) {
+                        emergencySquawks[ac.icao_hex] = {
+                            squawk: sq,
+                            callsign: ac.callsign,
+                            firstSeen: nowMs,
+                        };
+                    } else {
+                        // Update callsign in case it changed; preserve firstSeen
+                        emergencySquawks[ac.icao_hex].callsign = ac.callsign;
+                        emergencySquawks[ac.icao_hex].squawk = sq;
+                    }
+                }
+            }
+
+            // Auto-dismiss: remove any that are no longer active
+            for (const hex of Object.keys(emergencySquawks)) {
+                if (!activeHexes.has(hex)) {
+                    delete emergencySquawks[hex];
+                }
+            }
+
+            renderEmergencyBanner();
+        }
+
+        function formatDuration(ms) {
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + 's';
+            const m = Math.floor(s / 60), rs = s % 60;
+            if (m < 60) return m + 'm ' + rs + 's';
+            const h = Math.floor(m / 60), rm = m % 60;
+            return h + 'h ' + rm + 'm';
+        }
+
+        function renderEmergencyBanner() {
+            const banner = document.getElementById('emergency-banner');
+            const entries = Object.values(emergencySquawks);
+
+            if (entries.length === 0) {
+                banner.style.display = 'none';
+                banner.innerHTML = '';
+                return;
+            }
+
+            // Severity order: 7500 most urgent first
+            const order = { '7500': 0, '7700': 1, '7600': 2 };
+            entries.sort((a, b) => (order[a.squawk] ?? 9) - (order[b.squawk] ?? 9));
+
+            banner.style.display = 'block';
+            banner.innerHTML = entries.map(entry => {
+                const info = EMERGENCY_SQUAWKS[entry.squawk];
+                const dur = formatDuration(Date.now() - entry.firstSeen);
+                return `<div class="emergency-alert ${info.severity}">
+                    <span class="emergency-icon">${info.icon}</span>
+                    <div class="emergency-body">
+                        <div class="emergency-title">SQUAWK ${entry.squawk} &mdash; ${info.label} | ${entry.callsign}</div>
+                        <div class="emergency-detail">${info.meaning} &bull; Active for: <strong>${dur}</strong></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Keep durations updating every second
+        setInterval(() => {
+            if (Object.keys(emergencySquawks).length > 0) renderEmergencyBanner();
+        }, 1000);
+
+
+        // ============================================================
+        //  FEATURE 3 helper: resolve effective display class
+        // ============================================================
+        function getAircraftDisplayClass(ac) {
+            const sq = String(ac.squawk || '');
+            if (EMERGENCY_SQUAWKS[sq]) return 'emergency';
+            if (ac.aircraft_class === 'military') return 'military';
+            if (ac.aircraft_class === 'heavy')    return 'heavy';
+            return 'normal';
+        }
+
+
+        // ============================================================
+        //  Core dashboard state
+        // ============================================================
+        let selectedIndex = 0;
+        let aircraftData = [];
+        let wantedHex = /^#[0-9a-f]{6}$/i.test(location.hash) ? location.hash.slice(1).toUpperCase() : null;
+
+        function formatAlt(alt) {
+            if (alt === null || alt === undefined) return '---';
+            if (alt === 'ground') return 'GND';
+            return Number(alt).toLocaleString();
+        }
+
+        function formatSpeed(spd) {
+            if (spd === null || spd === undefined) return '---';
+            return Math.round(spd);
+        }
+
+        function formatHeading(hdg) {
+            if (hdg === null || hdg === undefined) return '---';
+            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return Math.round(hdg) + '° ' + dirs[Math.round(hdg / 45) % 8];
+        }
+
+        function formatVRate(vr) {
+            if (vr === null || vr === undefined) return '---';
+            const sign = vr > 0 ? '+' : '';
+            return sign + Math.round(vr);
+        }
+
+        function getVerticalClass(status) {
+            if (status === 'CLIMBING') return 'climbing';
+            if (status === 'DESCENDING') return 'descending';
+            return 'level';
+        }
+
+        function renderFeatured(ac) {
+            if (!ac) {
+                return `
+                    <div class="no-data">
+                        <div class="radar-sweep"></div>
+                        <div class="no-data-text">No aircraft detected<br><small>Waiting for ADS-B signals...</small></div>
+                    </div>
+                `;
+            }
+
+            const typeDisplay = ac.aircraft_type || ac.typecode || '---';
+            const regDisplay = ac.registration || '---';
+            const ageDisplay = ac.age ? `${ac.age} yrs` : '---';
+            const categoryDisplay = ac.category || '---';
+            const ownerDisplay = ac.owner || '---';
+            const vertClass = getVerticalClass(ac.vertical_status);
+
+            // Feature 3: apply class tint to featured panel border
+            const displayClass = getAircraftDisplayClass(ac);
+            const panel = document.getElementById('featured-panel');
+            if (panel) {
+                panel.className = 'featured-panel' +
+                    (displayClass !== 'normal' ? ' class-' + displayClass : '');
+            }
+
+            // Class badge for military/heavy
+            let classBadgeHtml = '';
+            if (ac.aircraft_class === 'military') {
+                classBadgeHtml = '<span class="class-badge-featured mil">MIL</span>';
+            } else if (ac.aircraft_class === 'heavy') {
+                classBadgeHtml = '<span class="class-badge-featured heavy">HEAVY</span>';
+            }
+
+            const callsignColorClass = displayClass !== 'normal' ? ' class-' + displayClass : '';
+
+            return `
+                <div class="featured-callsign${callsignColorClass}">${ac.callsign}${classBadgeHtml}</div>
+                <div class="featured-airline">${ac.airline || 'Unknown Operator'}</div>
+                ${typeDisplay !== '---' ? `<div class="featured-aircraft-type">${typeDisplay}</div>` : ''}
+
+                <div class="data-grid">
+                    <div class="data-cell highlight">
+                        <div class="value">${formatAlt(ac.altitude_baro)}</div>
+                        <div class="label">Altitude (ft)</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="value">${formatSpeed(ac.ground_speed)}</div>
+                        <div class="label">Speed (kts)</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="value">${formatHeading(ac.heading)}</div>
+                        <div class="label">Heading</div>
+                    </div>
+                    <div class="data-cell ${vertClass}">
+                        <div class="value">${ac.vertical_icon} ${formatVRate(ac.vertical_rate)}</div>
+                        <div class="label">Vert Rate (fpm)</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="value">${ac.squawk || '---'}</div>
+                        <div class="label">Squawk</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="value">${formatAlt(ac.altitude_gps)}</div>
+                        <div class="label">GPS Alt (ft)</div>
+                    </div>
+                </div>
+
+                <div class="aircraft-details">
+                    <div class="detail-item">
+                        <span class="label">Registration</span>
+                        <span class="value">${regDisplay}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">ICAO Hex</span>
+                        <span class="value">${ac.icao_hex || '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Type Code</span>
+                        <span class="value">${ac.typecode || '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Aircraft Age</span>
+                        <span class="value">${ageDisplay}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Owner</span>
+                        <span class="value">${ownerDisplay.substring(0, 20)}${ownerDisplay.length > 20 ? '...' : ''}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Bearing</span>
+                        <span class="value">${ac.bearing_deg != null ? ac.bearing_deg + '° ' + (ac.bearing_cardinal16 || ac.bearing_cardinal || '') : '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Coordinates</span>
+                        <span class="value">${ac.lat != null ? ac.lat.toFixed(4) + '°, ' + ac.lon.toFixed(4) + '°' : '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Signal (dBFS)</span>
+                        <span class="value">${ac.rssi ? ac.rssi.toFixed(1) : '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Distance</span>
+                        <span class="value">${ac.distance_mi != null ? ac.distance_mi.toFixed(1) + ' mi' : '---'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Messages</span>
+                        <span class="value">${ac.messages ? ac.messages.toLocaleString() : '---'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAircraftList(aircraft) {
+            if (!aircraft || aircraft.length === 0) {
+                return '<div class="no-data"><div class="no-data-text">No contacts</div></div>';
+            }
+
+            return aircraft.map((ac, i) => {
+                const vertClass = getVerticalClass(ac.vertical_status);
+                const isSelected = i === selectedIndex;
+                const typeDisplay = ac.typecode || '';
+
+                // Feature 3: class-based row styling
+                const displayClass = getAircraftDisplayClass(ac);
+                const itemClasses = [
+                    'aircraft-item',
+                    isSelected ? 'selected' : '',
+                    displayClass !== 'normal' ? 'class-' + displayClass : '',
+                ].filter(Boolean).join(' ');
+
+                let badgeHtml = '';
+                if (ac.aircraft_class === 'military') {
+                    badgeHtml = '<span class="class-badge mil">MIL</span>';
+                } else if (ac.aircraft_class === 'heavy') {
+                    badgeHtml = '<span class="class-badge heavy">HEAVY</span>';
+                }
+
+                return `
+                    <div class="${itemClasses}" onclick="selectAircraft(${i})">
+                        <div class="aircraft-item-header">
+                            <span class="aircraft-item-callsign">${ac.callsign}${badgeHtml}</span>
+                            ${typeDisplay ? `<span class="aircraft-item-type">${typeDisplay}</span>` : ''}
+                        </div>
+                        <div class="aircraft-item-stats">
+                            <div class="aircraft-item-stat">
+                                <span class="icon">◎</span>
+                                <span>${ac.distance_mi != null ? ac.distance_mi + ' mi' : '---'}</span>
+                            </div>
+                            ${ac.bearing_deg != null ? `<div class="aircraft-item-stat"><span class="bearing-tag">${Math.round(ac.bearing_deg)}&deg;&nbsp;${ac.bearing_cardinal || ''}</span></div>` : ''}
+                            <div class="aircraft-item-stat">
+                                <span class="icon">↕</span>
+                                <span>${formatAlt(ac.altitude_baro)} ft</span>
+                            </div>
+                            <div class="aircraft-item-stat">
+                                <span class="icon">→</span>
+                                <span>${formatSpeed(ac.ground_speed)} kts</span>
+                            </div>
+                            <div class="aircraft-item-stat ${vertClass}">
+                                <span>${ac.vertical_icon} ${ac.vertical_status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectAircraft(index) {
+            selectedIndex = index;
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const featured = aircraftData[selectedIndex] || aircraftData[0];
+            document.getElementById('featured-content').innerHTML = renderFeatured(featured);
+            document.getElementById('aircraft-list').innerHTML = renderAircraftList(aircraftData);
+
+            if (featured) {
+                document.getElementById('featured-seen').textContent = `Last seen: ${featured.seen}s ago`;
+            }
+
+            // The map opens on the plane shown here
+            document.getElementById('map-btn').href = featured ? '/map#' + featured.icao_hex.toLowerCase() : '/map';
+        }
+
+        // RECEIVING until the decoder goes quiet or its data file stops updating
+        function updateStatus(receiver) {
+            const down = !!receiver && receiver.state !== 'ok';
+            document.getElementById('status-badge').classList.toggle('down', down);
+            document.getElementById('status-text').textContent = down ? 'NO SIGNAL' : 'RECEIVING';
+        }
+
+        function updateDashboard(data) {
+            updateStatus(data.receiver);
+            if (data.error) {
+                document.getElementById('featured-content').innerHTML = `
+                    <div class="error-banner">
+                        <strong>ERROR:</strong> ${data.error}
+                    </div>
+                `;
+                return;
+            }
+
+            aircraftData = data.aircraft || [];
+
+            // Coming back from the map with a plane picked there
+            if (wantedHex) {
+                const found = aircraftData.findIndex(ac => ac.icao_hex === wantedHex);
+                if (found >= 0) selectedIndex = found;
+                wantedHex = null;
+                history.replaceState(null, '', location.pathname);
+            }
+
+            // Ensure selected index is valid
+            if (selectedIndex >= aircraftData.length) {
+                selectedIndex = 0;
+            }
+
+            document.getElementById('aircraft-count').textContent = aircraftData.length;
+            document.getElementById('update-time').textContent = data.updated || '--:--:--';
+
+            if (data.demo_mode) {
+                document.getElementById('demo-badge').innerHTML = '<span class="demo-badge">DEMO MODE</span>';
+            }
+
+            if (data.dashboard_title) {
+                document.title = data.dashboard_title;
+                document.querySelector('.logo').textContent = data.dashboard_title;
+            }
+
+            // Feature 1: update emergency squawk tracker on every data cycle
+            updateEmergencyTracker(aircraftData);
+
+            updateDisplay();
+        }
+
+        let fetchFailures = 0;
+
+        function fetchData() {
+            fetch('/api/aircraft')
+                .then(res => res.json())
+                .then(data => {
+                    fetchFailures = 0;
+                    const indicator = document.getElementById('connection-indicator');
+                    if (indicator) indicator.remove();
+                    updateDashboard(data);
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    fetchFailures++;
+                    if (fetchFailures >= 5) {
+                        updateDashboard({ error: 'Connection failed — retrying…' });
+                    } else if (fetchFailures >= 3) {
+                        // Show subtle indicator only after 3 consecutive misses
+                        let indicator = document.getElementById('connection-indicator');
+                        if (!indicator) {
+                            indicator = document.createElement('div');
+                            indicator.id = 'connection-indicator';
+                            indicator.style.cssText = 'position:fixed;top:8px;right:12px;background:#ff4444;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;opacity:0.85;z-index:999';
+                            indicator.textContent = 'Reconnecting…';
+                            document.body.appendChild(indicator);
+                        }
+                    }
+                });
+        }
+
+        // Threshold slider
+        const slider = document.getElementById('threshold-slider');
+        const thresholdDisplay = document.getElementById('threshold-display');
+
+        slider.addEventListener('input', () => {
+            thresholdDisplay.textContent = slider.value;
+        });
+
+        slider.addEventListener('change', () => {
+            fetch('/api/settings/seen-threshold', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({value: parseInt(slider.value)})
+            });
+        });
+
+        // Sync slider with server value on load
+        fetch('/api/settings/seen-threshold')
+            .then(r => r.json())
+            .then(d => {
+                slider.value = d.seen_threshold;
+                thresholdDisplay.textContent = d.seen_threshold;
+            });
+
+        // Initial fetch
+        fetchData();
+
+        // Refresh every 2 seconds
+        setInterval(fetchData, 2000);
+    </script>
 </body>
 </html>

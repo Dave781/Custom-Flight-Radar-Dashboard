@@ -4,14 +4,14 @@ How this project is laid out, how to run it, and what to check before changing i
 
 ## What it does
 
-A Raspberry Pi with an RTL-SDR dongle hears ADS-B messages from aircraft. The FlightRadar24 feeder (dump1090) decodes them into `aircraft.json`. This app reads that file and serves a live map on port 8080. A second Pi usually shows the map on a touchscreen in Chromium kiosk mode.
+A Raspberry Pi with an RTL-SDR dongle hears ADS-B messages from aircraft. The FlightRadar24 feeder (dump1090) decodes them into `aircraft.json`. This app reads that file and serves two pages on port 8080: the main view (primary target and contact list) and a live map opened from its MAP button. A second Pi usually shows the main view on a touchscreen in Chromium kiosk mode.
 
 ```
 RTL-SDR dongle
     → fr24feed (runs dump1090)
         → /run/dump1090/aircraft.json      rewritten every second
             → flight_dashboard/app.py      Flask: enrich, track, serve
-                → http://<pi-ip>:8080      map page, polls every second
+                → http://<pi-ip>:8080      main view polls every 2 s, map view every second
                     → kiosk Pi             Chromium fullscreen
 ```
 
@@ -26,7 +26,8 @@ RTL-SDR dongle
 | `flight_dashboard/demo.py` | Sample traffic for `DEMO_MODE=true` |
 | `flight_dashboard/download_map.py` | Cuts the area around the antenna out of the Protomaps planet file into `data/map.pmtiles`, and builds `data/airports.json` from OurAirports. Standard library only |
 | `flight_dashboard/download_db.py` | Builds `data/aircraft_db.json` from the OpenSky aircraft database |
-| `flight_dashboard/templates/index.html` | Map page markup |
+| `flight_dashboard/templates/index.html` | Main view (`/`): primary target and contact list. One file with its own CSS and JavaScript. Polls every 2 seconds |
+| `flight_dashboard/templates/map.html` | Map view markup (`/map`) |
 | `flight_dashboard/templates/debug.html` | Details page markup (`/debug`) |
 | `flight_dashboard/static/js/app.js` | Map page logic: polling, selection, card, alerts, dimming |
 | `flight_dashboard/static/js/style.js` | Map colors and layers |
@@ -84,7 +85,8 @@ There is no hand-drawn coastline any more. The map and airports come from the do
 
 | Endpoint | Returns |
 |---|---|
-| `GET /` | Map page |
+| `GET /` | Main view. `/#<hex>` starts on that aircraft |
+| `GET /map` | Map view. `/map#<hex>` starts on that aircraft. `/map?stay` never closes by itself |
 | `GET /debug` | Details page |
 | `GET /api/aircraft` | Aircraft with positions, plus `receiver` and `today` |
 | `GET /api/trails` | `{hex: [[lon, lat, altitude, time], ...]}` for the last `TRAIL_SECONDS` |
@@ -106,13 +108,15 @@ Fields on each aircraft in `/api/aircraft`:
 
 Aircraft without a position are left out. Mode S-only aircraft send altitude and speed but no latitude or longitude.
 
-## How the page decides things
+## How the map view decides things
 
 | Behavior | Rule | Where |
 |---|---|---|
 | Which plane the card shows | The plane highest above the horizon within `MAP_RANGE_MI`. Another plane must be 8° higher to take over. An emergency squawk always wins | `choose()` in `app.js` |
 | Pinning | A tapped plane stays selected for 60 seconds without a touch | `tick()` in `app.js` |
 | View reset | A moved map returns to the home view after 45 seconds without a touch | `tick()` in `app.js` |
+| Closing | The map returns to the main view after `MAP_CLOSE_SECONDS` without a touch, unless an emergency is showing or the address has `?stay` | `tick()` and `closeMap()` in `app.js` |
+| Hand-off | The main view's MAP link carries the primary target as `/map#<hex>`. Closing the map with a pinned plane returns `/#<hex>` | `updateDisplay()` in `index.html`, `closeMap()` in `app.js` |
 | Plane position | The last report moved forward by its age, up to 8 seconds | `drawnPosition()` in `app.js` |
 | Icon shape | Military hex block, then helicopter, heavy, and prop type codes, then the ADS-B emitter category | `pick_icon()` in `app.py` |
 | Route shown or hidden | Below 12,000 ft the plane must be within 75 miles of one end. In cruise it must be near the direct path | `route_is_plausible()` in `lookups.py` |

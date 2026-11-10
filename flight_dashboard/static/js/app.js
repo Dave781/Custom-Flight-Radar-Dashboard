@@ -36,6 +36,8 @@ const state = {
     dimMode: 'auto',
     moreOpen: false,
     emergencyShown: null,
+    wanted: /^#[0-9a-f]{6}$/i.test(location.hash) ? location.hash.slice(1).toLowerCase() : null,
+    lastActivity: Date.now(),
 };
 let map;
 let selMarker;
@@ -306,6 +308,16 @@ function onData(data) {
         if (!seen.has(hex)) { state.planes.delete(hex); state.trails.delete(hex); }
     }
 
+    // Opened from the main view as /map#hex: start on the plane that was showing there
+    if (state.wanted) {
+        if (state.planes.has(state.wanted)) {
+            state.selected = state.wanted;
+            state.pinned = true;
+            state.lastTouch = Date.now();
+        }
+        state.wanted = null;
+    }
+
     choose();
     render();
     showEmergency();
@@ -365,6 +377,13 @@ function tick() {
     if (state.pinned && idle > PIN_SECONDS) { state.pinned = false; choose(); render(); }
     if (state.viewMoved && idle > VIEW_RESET_SECONDS && !state.emergencyShown) homeView(true);
     applyDim();
+    // Like the radar pop-up it replaces, an untouched map goes back to the main view.
+    if (closeSeconds > 0 && !state.emergencyShown && (Date.now() - state.lastActivity) / 1000 > closeSeconds) closeMap();
+}
+
+// A plane the viewer picked here stays picked on the main view.
+function closeMap() {
+    location.href = '/' + (state.pinned && state.selected ? '#' + state.selected : '');
 }
 
 // ---------- rendering ----------
@@ -633,9 +652,16 @@ function initControls() {
         $('more-btn').setAttribute('aria-expanded', String(state.moreOpen));
         state.lastTouch = Date.now();
     });
+    $('btn-close').addEventListener('click', event => { event.preventDefault(); closeMap(); });
+    for (const type of ['pointerdown', 'wheel', 'keydown']) {
+        addEventListener(type, () => { state.lastActivity = Date.now(); }, { capture: true, passive: true });
+    }
     document.documentElement.style.setProperty('--alt-gradient', ALTITUDE_GRADIENT_CSS);
     applyDim();
 }
+
+// /map?stay keeps the map open, for a screen that should show nothing else.
+const closeSeconds = new URLSearchParams(location.search).has('stay') ? 0 : Number(cfg.close_seconds) || 0;
 
 // ?scale=1.25 makes everything a quarter larger, for screens read from across a room.
 const scale = Number(new URLSearchParams(location.search).get('scale'));
