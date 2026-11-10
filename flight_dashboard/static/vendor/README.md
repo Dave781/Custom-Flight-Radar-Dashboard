@@ -11,4 +11,4 @@ These are copied in so the kiosk needs no CDN.
 | `../fonts/ui/orbitron-latin-*.woff2` | [Orbitron](https://github.com/theleagueof/orbitron) via Fontsource | 5.3.0 | OFL-1.1, `../fonts/ui/LICENSE-orbitron.txt` |
 | `../fonts/ui/share-tech-mono-latin-400-normal.woff2` | [Share Tech Mono](https://fonts.google.com/specimen/Share+Tech+Mono) via Fontsource | 5.3.0 | OFL-1.1, `../fonts/ui/LICENSE-share-tech-mono.txt` |
 
-To update MapLibre or PMTiles, copy the same files from the new npm package's `dist/` folder.
+To update MapLibre or PMTiles, copy the same files from the new npm package's `dist/` folder. Then change the MapLibre version in the worker `prefetch` link at the top of `templates/index.html`. Browsers keep these files for a week, so reload the kiosk with its cache cleared after an update.

@@ -108,6 +108,15 @@ Fields on each aircraft in `/api/aircraft`:
 
 Aircraft without a position are left out. Mode S-only aircraft send altitude and speed but no latitude or longitude.
 
+## Slow links
+
+The kiosk often reaches the server over weak Wi-Fi. On 11/10/2026 the link between two Pis on the same network swung between 1 MB/s and 20 KB/s. `light_on_the_wire()` in `app.py` handles that:
+
+- Text responses (HTML, JavaScript, CSS, JSON) are gzipped. The MapLibre library and worker go from 1.6 MB to 0.44 MB.
+- `/static/vendor/` and `/static/fonts/` are cached by the browser for a week. Our own JavaScript and CSS are revalidated on every load, so a deploy shows up at once.
+- The main view prefetches the map's library files, so the first tap on MAP opens from the cache.
+- The map view shows "Loading map" until its first frame.
+
 ## How the map view decides things
 
 | Behavior | Rule | Where |

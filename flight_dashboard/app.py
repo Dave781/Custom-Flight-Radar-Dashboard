@@ -6,6 +6,7 @@ Enriches data with aircraft database lookups
 """
 
 from flask import Flask, render_template, jsonify, request, send_file, abort
+import gzip
 import json
 import os
 import subprocess
@@ -375,6 +376,55 @@ def client_config():
     }
 
 
+# ---------- light on the wire ----------
+# The kiosk often reaches this Pi over slow Wi-Fi. Text is sent gzipped, and files that
+# do not change between deploys are cached by the browser so the map opens from disk.
+
+LONG_CACHE_PREFIXES = ('/static/vendor/', '/static/fonts/')
+LONG_CACHE_SECONDS = 7 * 24 * 3600
+GZIP_TYPES = ('text/', 'application/json', 'application/javascript', 'image/svg+xml')
+GZIP_MIN_BYTES = 1024
+_gzip_cache = {}          # (path, etag) -> compressed bytes, for static files
+
+
+@app.after_request
+def light_on_the_wire(response):
+    path = request.path
+    if response.status_code == 200:
+        if path.startswith(LONG_CACHE_PREFIXES):
+            response.cache_control.no_cache = None
+            response.cache_control.public = True
+            response.cache_control.max_age = LONG_CACHE_SECONDS
+        elif path.startswith('/static/'):
+            response.cache_control.max_age = None
+            response.cache_control.no_cache = True      # keep a copy, but ask if it changed
+
+    if (response.status_code != 200 or request.method != 'GET'
+            or 'gzip' not in request.headers.get('Accept-Encoding', '')
+            or request.headers.get('Range')
+            or response.headers.get('Content-Encoding')
+            or not (response.mimetype or '').startswith(GZIP_TYPES)):
+        return response
+
+    etag = response.headers.get('ETag')
+    key = (path, etag) if path.startswith('/static/') and etag else None
+    body = _gzip_cache.get(key) if key else None
+    if body is None:
+        response.direct_passthrough = False
+        raw = response.get_data()
+        if len(raw) < GZIP_MIN_BYTES:
+            return response
+        body = gzip.compress(raw, compresslevel=6 if key else 4)
+        if key:
+            _gzip_cache[key] = body
+    response.direct_passthrough = False
+    response.set_data(body)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = str(len(body))
+    response.headers.add('Vary', 'Accept-Encoding')
+    return response
+
+
 @app.route('/')
 def index():
     """Main view: the primary target and the list of all contacts"""
@@ -468,7 +518,7 @@ def map_tiles():
     """The basemap. The browser reads it with HTTP range requests."""
     if not os.path.exists(MAP_FILE):
         abort(404)
-    return send_file(MAP_FILE, mimetype='application/octet-stream', conditional=True, max_age=3600)
+    return send_file(MAP_FILE, mimetype='application/octet-stream', conditional=True, max_age=24 * 3600)
 
 @app.route('/api/settings/seen-threshold', methods=['GET', 'POST'])
 def api_seen_threshold():

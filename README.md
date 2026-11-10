@@ -128,6 +128,7 @@ A route is shown only when the plane's position fits it. Callsign tables go stal
 | Planes but no type or tail number | Run `venv/bin/python3 download_db.py` |
 | No route on a flight | Private and military flights have none. Airline routes are hidden when they don't fit the plane's position |
 | "Dashboard offline" | The browser can't reach the Pi. `systemctl is-active flight-dashboard` |
+| "Loading map" for a long time | The link between the kiosk and the Pi is slow. The first open downloads about 0.5 MB. After that the map opens from the browser cache |
 | "This browser cannot draw the map" | The map needs WebGL. Open `chrome://gpu` on the kiosk and check that WebGL is on |
 
 ## Tests

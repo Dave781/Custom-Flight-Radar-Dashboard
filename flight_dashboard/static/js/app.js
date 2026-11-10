@@ -128,6 +128,7 @@ function initMap() {
     const canvas = document.createElement('canvas');
     if (!canvas.getContext('webgl2') && !canvas.getContext('webgl')) {
         state.noWebGL = true;      // the map cannot draw; say so instead of showing a blank screen
+        $('loading').hidden = true;
         return;
     }
     if (cfg.has_map) {
@@ -156,6 +157,7 @@ function initMap() {
     document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
 
     map.on('load', () => {
+        $('loading').hidden = true;
         homeView(false);
         drawRings();
         loadAirports();

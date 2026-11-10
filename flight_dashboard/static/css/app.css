@@ -269,6 +269,22 @@ button, a { font: inherit; color: inherit; }
 }
 #empty[hidden] { display: none; }
 
+/* Shown until the map library has arrived and drawn its first frame */
+#loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    pointer-events: none;
+    z-index: 1;
+    animation: loading-pulse 1.6s ease-in-out infinite;
+}
+#loading[hidden] { display: none; }
+@keyframes loading-pulse { 50% { opacity: 0.45; } }
+
 #today {
     position: absolute;
     right: var(--gap);

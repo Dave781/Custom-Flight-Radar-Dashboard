@@ -198,6 +198,30 @@ class Api(unittest.TestCase):
         self.assertIn(b'"close_seconds"', expanded.data)
         self.assertEqual(self.client.get('/debug').status_code, 200)
 
+    def test_text_is_gzipped_and_big_files_are_cached(self):
+        import gzip
+        gz = {'Accept-Encoding': 'gzip'}
+        library = self.client.get('/static/vendor/maplibre-gl.mjs', headers=gz)
+        self.assertEqual(library.headers.get('Content-Encoding'), 'gzip')
+        self.assertLess(len(library.data), 450_000)                       # 1.1 MB uncompressed
+        self.assertIn(b'MapLibre GL JS', gzip.decompress(library.data)[:200])
+        self.assertIn('max-age=604800', library.headers['Cache-Control'])
+        own = self.client.get('/static/js/app.js', headers=gz)
+        self.assertIn('no-cache', own.headers['Cache-Control'])           # revalidated after a deploy
+        self.assertEqual(own.headers.get('Content-Encoding'), 'gzip')
+        font = self.client.get('/static/fonts/ui/orbitron-latin-700-normal.woff2', headers=gz)
+        self.assertIsNone(font.headers.get('Content-Encoding'))           # already compressed
+        self.assertIn('max-age=604800', font.headers['Cache-Control'])
+        font.close()
+        plain = self.client.get('/static/vendor/maplibre-gl.css')
+        self.assertIsNone(plain.headers.get('Content-Encoding'))          # client did not ask for gzip
+        plain.close()
+        home = self.client.get('/', headers=gz)
+        self.assertEqual(home.headers.get('Content-Encoding'), 'gzip')
+        self.assertIn(b'Primary Target', gzip.decompress(home.data))
+        again = self.client.get('/static/vendor/maplibre-gl.mjs', headers={**gz, 'If-None-Match': library.headers['ETag']})
+        self.assertEqual(again.status_code, 304)
+
     def test_aircraft(self):
         data = self.client.get('/api/aircraft').get_json()
         self.assertGreater(data['total'], 3)

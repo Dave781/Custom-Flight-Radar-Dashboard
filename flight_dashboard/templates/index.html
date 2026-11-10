@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dave's ADS-B Radar</title>
+    <!-- Fetched in the background so the map opens from the browser cache -->
+    <link rel="prefetch" href="/static/vendor/maplibre-gl.mjs" as="script">
+    <link rel="prefetch" href="/static/vendor/maplibre-gl-worker.mjs?v=6.17.0" as="script">
+    <link rel="prefetch" href="/static/vendor/maplibre-gl.css" as="style">
+    <link rel="prefetch" href="/static/vendor/pmtiles.js" as="script">
     <style>
         @font-face { font-family: 'Share Tech Mono'; font-weight: 400; font-display: swap;
                      src: url('/static/fonts/ui/share-tech-mono-latin-400-normal.woff2') format('woff2'); }
