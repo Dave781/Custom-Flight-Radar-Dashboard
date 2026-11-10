@@ -1,151 +1,70 @@
 # Dave's Custom Flight Radar Dashboard
 
-![Dashboard](flight_dashboard/screenshots/dashboard-main.png)
+![Live map with a selected flight](flight_dashboard/screenshots/dashboard-main.png)
 
-A real-time ADS-B flight tracking dashboard for Raspberry Pi with radar map overlay, emergency squawk alerts, auto-dimming, and aircraft classification.
+A live map of the aircraft your own antenna hears, built for a Raspberry Pi and a small touchscreen. Tap a plane to see what it is and where it's going.
 
-## Screenshots
+## What's on screen
 
-![Dashboard Main View](flight_dashboard/screenshots/dashboard-main.png)
-*Live view showing primary target with full aircraft details, contacts list, bearing, and distance*
+| Part | What it shows |
+|---|---|
+| Map | Dark map of your area with water, parks, highways, airports, and runways. Pinch to zoom. Range rings at 5, 10, and 20 miles |
+| Planes | One shape each for jets, heavies, props, helicopters, and military aircraft. Color is altitude. A trail shows the last 5 minutes |
+| Flight card | Photo, callsign, airline, type, route, altitude, speed, and where to look in the sky ("SE, 40° up"). The arrow under it opens tail number, year built, squawk, climb rate, heading, and distance |
+| Today | Planes seen today, and the farthest, highest, and fastest |
+| Alerts | "No signal" when the receiver stops hearing messages. A red banner for squawk 7500, 7600, or 7700 |
+| Details page | The slider icon opens `/debug`: every raw field, message rate, setup status, and the max-age setting |
 
-![Dashboard Detail View](flight_dashboard/screenshots/dashboard-detail.png)
-*Aircraft detail panel showing registration, owner, type code, age, coordinates, and bearing*
+Left alone, the card follows the plane highest in the sky. Tap a plane to pin it for a minute. The screen dims itself after sunset.
 
-## Features
+<img src="flight_dashboard/screenshots/dashboard-phone.png" alt="Phone layout" width="300">
 
-- **Live radar map** — tap ⬤ RADAR to open a modal overlay showing aircraft on a map with coastline, range rings, and heading arrows. Auto-closes after 15 seconds
-- **Bearing indicator** — compass bearing and cardinal direction from your antenna to each aircraft
-- **Emergency squawk alerts** — flashing banner for squawk 7500 (hijack), 7600 (radio failure), 7700 (emergency) with auto-dismiss
-- **Auto-dim at night** — screen dims after sunset using NOAA solar calculation (no API needed)
-- **Aircraft classification** — MIL (gold) and HEAVY (cyan) badges for military and wide-body aircraft
-- **Distance from antenna** — calculated via haversine formula, shown in miles
-- Real-time tracking with automatic 2-second updates
-- Altitude, speed, heading, vertical rate, coordinates
-- Aircraft type lookup from OpenSky Network database
-- Registration, operator, owner, and aircraft age details
-- Configurable MAX AGE slider (10–300s, steps of 10)
-- Web-based interface optimized for 800×480 kiosk touchscreen
-- Demo mode for testing without hardware
+The screenshots use demo traffic. With lookups on, the card shows a photo of the airframe in place of the silhouette.
 
-## Customizing for Your Location
-
-To use this dashboard at your own location, you need to update three things:
-
-### 1. Set your antenna coordinates
-
-Copy the example env file and fill in your antenna's coordinates:
+## Try it without a receiver
 
 ```bash
 cd flight_dashboard
-cp .env.example .env
-# then edit .env:
-HOME_LAT=your_antenna_latitude
-HOME_LON=your_antenna_longitude
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/python3 download_map.py --lat 47.6062 --lon -122.3321
+DEMO_MODE=true venv/bin/python3 app.py
 ```
 
-`.env` is gitignored, so your location never gets committed. You can also set `HOME_LAT` / `HOME_LON` as regular environment variables (for example in the systemd unit).
+Open http://127.0.0.1:8080. Demo mode flies 13 sample flights around Seattle. Set `DEMO_SCENARIO` to `emergency`, `stalled`, or `empty` to see those states.
 
-### 2. Update the radar coastline
+## Install on a Raspberry Pi
 
-The radar overlay includes a local coastline outline. The default is the Puget Sound / Seattle area. To add your own coastline:
+You need a Pi with an RTL-SDR dongle and the [FlightRadar24 feeder](https://www.flightradar24.com/share-your-data), which runs dump1090.
 
-1. Go to https://www.openstreetmap.org and find your area
-2. Identify key coastal points near your antenna (within ~25 miles)
-3. Edit `flight_dashboard/templates/index.html` and find the `COASTLINE_POINTS` array in the JavaScript section
-4. Replace the coordinates with your own, as an array of `[lat, lon]` pairs:
-
-```javascript
-const COASTLINE_POINTS = [
-    [your_lat_1, your_lon_1],
-    [your_lat_2, your_lon_2],
-    // ... trace the coastline near your antenna
-    // Use null to break between disconnected segments
-    null,
-    [next_segment_lat_1, next_segment_lon_1],
-    // ...
-];
-```
-
-**Tips:**
-- Only include coastline within your radar range (default 25 miles)
-- Use `null` entries to separate disconnected land masses or islands
-- 20–40 points per segment is usually enough for a smooth outline
-- Points should trace the shoreline in order (clockwise or counterclockwise)
-
-### 3. Update the dashboard title (optional)
-
-Set the `DASHBOARD_TITLE` environment variable or edit `app.py`:
-
-```python
-DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Your Dashboard Name")
-```
-
-## Requirements
-
-- Raspberry Pi with RTL-SDR dongle (for ADS-B data)
-- dump1090 (via FlightRadar24 feeder)
-- Python 3.x with virtualenv
-- Flask web framework
-- Optional: second Pi with touchscreen for kiosk display
-
-## Installation
-
-1. Create a virtualenv and install dependencies:
+1. Make the feeder write its aircraft list. In `/etc/fr24feed.ini`:
+   ```ini
+   procargs=--write-json /run/dump1090 --write-json-every 1
+   ```
+   Then run `sudo systemctl restart fr24feed`.
+2. Install the dashboard:
    ```bash
-   cd flight_dashboard
+   git clone https://github.com/Dave781/Custom-Flight-Radar-Dashboard.git
+   cd Custom-Flight-Radar-Dashboard/flight_dashboard
    python3 -m venv venv
    venv/bin/pip install -r requirements.txt
    ```
-
-2. Download the aircraft database:
+3. Tell it where the antenna is:
    ```bash
-   venv/bin/python3 download_db.py
+   cp .env.example .env
+   # edit .env and set HOME_LAT and HOME_LON
    ```
-
-3. Configure FR24 feeder to output JSON data:
-
-   **Option A: Via FR24 Web Interface (Recommended)**
-   - Access http://your-pi-ip:8754
-   - Go to Settings
-   - In Process arguments field, add:
-     ```
-     --write-json /run/dump1090 --write-json-every 1
-     ```
-   - Click Save and Restart
-
-   **Option B: Edit config file directly**
-   - Edit `/etc/fr24feed.ini` and ensure it has:
-     ```ini
-     receiver=dvbt
-     bs=yes
-     raw=yes
-     mlat=yes
-     procargs=--write-json /run/dump1090 --write-json-every 1
-     ```
-   - Restart fr24feed: `sudo systemctl restart fr24feed`
-
-4. Fix permissions for JSON output:
+   `.env` is gitignored, so your location is never committed.
+4. Download the data:
    ```bash
-   sudo chown -R fr24:fr24 /run/dump1090/
+   venv/bin/python3 download_map.py   # map and airports for your area, about 25 MB
+   venv/bin/python3 download_db.py    # aircraft types and tail numbers
    ```
+5. Start it at boot with `./install.sh`, or run it by hand with `./run.sh`.
 
-5. Set up the systemd service:
-   ```bash
-   sudo cp flight-dashboard.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable flight-dashboard
-   sudo systemctl start flight-dashboard
-   ```
+The dashboard is at `http://your-pi-ip:8080`.
 
-## Two-Pi Setup (Backend + Kiosk Display)
-
-This project supports a split setup:
-
-- **Pi 4** (or similar) — runs the Flask backend, RTL-SDR dongle, and dump1090
-- **Pi 5** (or similar) — runs a touchscreen in kiosk mode, displaying the dashboard
-
-### Kiosk Pi autostart
+### Kiosk screen on a second Pi
 
 Create `~/.config/autostart/adsb-dashboard.desktop` on the display Pi:
 
@@ -157,92 +76,60 @@ Exec=chromium --kiosk --start-fullscreen --no-first-run --password-store=basic h
 X-GNOME-Autostart-enabled=true
 ```
 
-Replace `BACKEND-PI-IP` with your backend Pi's IP address.
+The layout is sized for 800×480. Larger touchscreens scale up by themselves. To set the size by hand, add `?scale=1.25` to the address.
 
-## Service File
+## Settings
 
-The production service file at `/etc/systemd/system/flight-dashboard.service`:
+Set these in `flight_dashboard/.env` or as environment variables.
 
-```ini
-[Unit]
-Description=ADS-B Flight Dashboard
-After=network.target dump1090-fa.service
+| Variable | Default | What it does |
+|---|---|---|
+| `HOME_LAT`, `HOME_LON` | none | Antenna location. Required |
+| `DASHBOARD_TITLE` | `Dave's ADS-B Radar` | Browser tab title |
+| `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the server listens |
+| `MAP_RANGE_MI` | `25` | Miles from the antenna to the edge of the screen |
+| `RANGE_RINGS_MI` | `5,10,20` | Range ring distances |
+| `TRAIL_SECONDS` | `300` | Trail length |
+| `SEEN_THRESHOLD` | `120` | Seconds of silence before a plane leaves the map |
+| `STALL_SECONDS` | `180` | Seconds without new messages before "No signal" shows |
+| `LOOKUPS` | `true` | `false` turns off route and photo lookups |
+| `MAP_RADIUS_MI`, `MAP_MAX_ZOOM` | `80`, `12` | How much map `download_map.py` stores |
+| `DEMO_MODE` | `false` | `true` uses sample traffic |
 
-[Service]
-Type=simple
-User=YOUR_USERNAME
-WorkingDirectory=/home/YOUR_USERNAME/flight_dashboard
-Environment=PORT=8080
-ExecStart=/home/YOUR_USERNAME/flight_dashboard/venv/bin/python3 /home/YOUR_USERNAME/flight_dashboard/app.py
-Restart=always
-RestartSec=5
+## What leaves your network
 
-[Install]
-WantedBy=multi-user.target
-```
+- **Map:** nothing while the dashboard runs. `download_map.py` fetches the map once and the Pi serves it from disk.
+- **Routes and photos:** when a plane is selected, the Pi sends its callsign to adsbdb.com and its ICAO hex to planespotters.net, then caches the answer for a day. Your location is not sent. The browser loads the photo from planespotters.net. `LOOKUPS=false` turns both off.
 
-## Usage
-
-Access the dashboard at: `http://your-pi-ip:8080`
-
-Or run manually:
-```bash
-./run.sh
-```
-
-For demo mode (no dump1090 required):
-```bash
-DEMO_MODE=true venv/bin/python3 app.py
-```
-
-## How Aircraft Are Sorted
-
-Aircraft are sorted by distance from antenna (nearest first). Aircraft without position data (Mode S only) are sorted by RSSI (signal strength) and appear after positioned aircraft.
-
-## Services
-
-This setup runs two services on different ports:
-- **Port 8080** - Flight Dashboard (this application)
-- **Port 8754** - FR24 Feed Status page
-
-## Aircraft JSON Path
-
-The app searches for aircraft data in this order:
-1. `/run/dump1090-fa/aircraft.json`
-2. `/run/dump1090/aircraft.json`
-3. `/var/run/dump1090-fa/aircraft.json`
-
-## Files
-- `app.py` - Main Flask application
-- `download_db.py` - OpenSky Network aircraft database downloader
-- `install.sh` - Installation script
-- `run.sh` - Quick start script
-- `requirements.txt` - Python dependencies
-- `templates/index.html` - Dashboard UI (single-page, self-contained)
-- `data/aircraft_db.json` - Aircraft database (generated by download_db.py)
+A route is shown only when the plane's position fits it. Callsign tables go stale, and a plane landing in Seattle labeled "SFO → PDX" is worse than no label.
 
 ## Troubleshooting
 
-**If you see "aircraft.json not found":**
-1. Check dump1090 is running: `ps aux | grep dump1090`
-2. Verify JSON files exist: `ls -la /run/dump1090/`
-3. Check file is being updated: `cat /run/dump1090/aircraft.json`
-4. Check service logs: `sudo journalctl -u flight-dashboard -f`
+| Symptom | Check |
+|---|---|
+| "No signal" alert | The decoder is running but hears nothing. Unplug and replug the RTL-SDR dongle, then `sudo systemctl restart fr24feed` |
+| "Decoder offline" alert | `aircraft.json` is missing or stale. `ls -la /run/dump1090/` and `sudo journalctl -u fr24feed -n 50` |
+| "No map yet" | Run `venv/bin/python3 download_map.py` and restart the dashboard |
+| Planes but no type or tail number | Run `venv/bin/python3 download_db.py` |
+| No route on a flight | Private and military flights have none. Airline routes are hidden when they don't fit the plane's position |
+| "Dashboard offline" | The browser can't reach the Pi. `systemctl is-active flight-dashboard` |
+| "This browser cannot draw the map" | The map needs WebGL. Open `chrome://gpu` on the kiosk and check that WebGL is on |
 
-**If aircraft.json exists but is empty:**
-1. Verify dump1090 has write permissions: `sudo chown -R fr24:fr24 /run/dump1090/`
-2. Check FR24 process arguments include `--write-json /run/dump1090`
-3. Restart FR24: `sudo systemctl restart fr24feed`
+## Tests
 
-**If FR24 feeder won't start:**
-1. Make sure only FR24 is using the USB dongle (no other dump1090 instances)
-2. Check logs: `sudo journalctl -u fr24feed -n 50`
-3. Disable conflicting services: `sudo systemctl stop dump1090.service`
+```bash
+cd flight_dashboard
+venv/bin/python -m unittest discover -s tests
+```
 
-**If the dashboard shows "Reconnecting...":**
-1. The Flask server may be briefly unavailable — it auto-recovers within 2 seconds
-2. Check the service is running: `systemctl is-active flight-dashboard`
-3. Check logs: `sudo journalctl -u flight-dashboard -f`
+## Credits
+
+- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, tiles by [Protomaps](https://protomaps.com), drawn with [MapLibre GL JS](https://maplibre.org)
+- Airports and runways from [OurAirports](https://ourairports.com/data/)
+- Routes from [adsbdb](https://www.adsbdb.com), photos from [Planespotters.net](https://www.planespotters.net)
+- Aircraft database from the [OpenSky Network](https://opensky-network.org)
+- Third-party files and licenses: [flight_dashboard/static/vendor/README.md](flight_dashboard/static/vendor/README.md)
 
 ## License
-Open source - modify as needed!
+
+Open source. Modify as needed.
