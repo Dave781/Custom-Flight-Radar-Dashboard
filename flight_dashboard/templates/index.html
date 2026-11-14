@@ -445,22 +445,26 @@
         /* Map button in header */
         #map-btn {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
+            /* The kiosk is an 8 inch, 1280x800 touchscreen (about 190 px per inch),
+               so 72 px is roughly a 10 mm finger target */
+            font-size: 1.5rem;
+            letter-spacing: 3px;
             cursor: pointer;
-            padding: 5px 12px;
-            border-radius: 4px;
-            border: 1px solid var(--border);
+            padding: 14px 34px;
+            min-height: 72px;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 8px;
+            border: 2px solid var(--primary);
             background: var(--bg-card);
-            color: var(--text-dim);
-            transition: border-color 0.2s, color 0.2s;
+            color: var(--primary);
+            transition: border-color 0.2s, color 0.2s, background 0.2s;
             user-select: none;
             text-decoration: none;
             white-space: nowrap;
         }
-        #map-btn:hover, #map-btn.active {
-            border-color: var(--primary);
-            color: var(--primary);
+        #map-btn:hover, #map-btn:active, #map-btn.active {
+            background: rgba(0, 255, 136, 0.15);
         }
 
         /* Main layout: featured left, contacts right */
@@ -500,7 +504,7 @@
             .status-badge { padding: 2px 5px; font-size: 0.55rem; }
             .threshold-control label { font-size: 0.55rem; }
             .threshold-value { font-size: 0.65rem; }
-            #map-btn { padding: 2px 6px; font-size: 0.6rem; }
+            #map-btn { padding: 4px 16px; min-height: 36px; font-size: 0.9rem; border-width: 1px; }
 
             .main-grid { gap: 4px; grid-template-columns: 1fr 220px; }
             .featured-panel .panel-header,
