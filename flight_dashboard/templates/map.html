@@ -18,10 +18,11 @@
 
     <!-- Flight card: the selected aircraft -->
     <aside id="card" hidden>
-        <a id="photo" target="_blank" rel="noopener" hidden>
+        <!-- Not a link: a tap on the kiosk must never leave the dashboard -->
+        <div id="photo" hidden>
             <img id="photo-img" alt="">
             <span id="photo-by"></span>
-        </a>
+        </div>
         <div id="silhouette" aria-hidden="true"></div>
         <div id="card-body">
             <div class="id-row">

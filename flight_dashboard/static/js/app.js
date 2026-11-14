@@ -529,7 +529,7 @@ function renderCard() {
 }
 
 function renderPhoto(ac, photo) {
-    const link = $('photo');
+    const frame = $('photo');
     const img = $('photo-img');
     const silhouette = $('silhouette');
     const kind = ICONS[ac.icon] ? ac.icon : 'jet';
@@ -538,7 +538,7 @@ function renderPhoto(ac, photo) {
         silhouette.innerHTML = silhouetteSvg(kind);
     }
     if (!photo) {
-        link.hidden = true;
+        frame.hidden = true;
         silhouette.hidden = false;
         img.removeAttribute('src');
         img.dataset.src = '';
@@ -547,16 +547,15 @@ function renderPhoto(ac, photo) {
     if (img.dataset.src !== photo.src) {
         // Keep the silhouette up until the picture has loaded.
         img.dataset.src = photo.src;
-        link.hidden = true;
+        frame.hidden = true;
         silhouette.hidden = false;
         img.onload = () => {
             if (img.dataset.src !== photo.src) return;
-            link.hidden = false;
+            frame.hidden = false;
             silhouette.hidden = true;
         };
-        img.onerror = () => { link.hidden = true; silhouette.hidden = false; };
+        img.onerror = () => { frame.hidden = true; silhouette.hidden = false; };
         img.src = photo.src;
-        link.href = photo.link || '#';
         setText('photo-by', photo.by ? `© ${photo.by}` : '');
     }
 }

@@ -198,6 +198,20 @@ class Api(unittest.TestCase):
         self.assertIn(b'"close_seconds"', expanded.data)
         self.assertEqual(self.client.get('/debug').status_code, 200)
 
+    def test_a_tap_never_leaves_the_dashboard(self):
+        """The kiosk has no back button, so no page may link to another site."""
+        for path in ('/', '/map'):
+            page = self.client.get(path).data
+            self.assertNotIn(b'target="_blank"', page, path)
+            self.assertNotIn(b'href="http', page, path)
+        with open(os.path.join(os.path.dirname(dashboard.__file__), 'static', 'js', 'app.js')) as f:
+            self.assertNotIn('.href = photo', f.read())
+
+    def test_home_has_the_photo_preview(self):
+        home = self.client.get('/').data
+        self.assertIn(b'id="photo-preview"', home)
+        self.assertIn(b'hidden', home.split(b'id="photo-preview"')[1].split(b'>')[0])
+
     def test_text_is_gzipped_and_big_files_are_cached(self):
         import gzip
         gz = {'Accept-Encoding': 'gzip'}
