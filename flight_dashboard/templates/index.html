@@ -442,11 +442,16 @@
             margin-left: 10px;
         }
 
-        /* Map button in header */
+        /* Map button: pinned to the bottom right corner, kept dim so it does not
+           pull the eye from the aircraft. The kiosk is an 8 inch, 1280x800
+           touchscreen (about 190 px per inch), so 72 px is roughly a 10 mm
+           finger target. */
         #map-btn {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 50;
             font-family: 'Share Tech Mono', monospace;
-            /* The kiosk is an 8 inch, 1280x800 touchscreen (about 190 px per inch),
-               so 72 px is roughly a 10 mm finger target */
             font-size: 1.5rem;
             letter-spacing: 3px;
             cursor: pointer;
@@ -455,17 +460,20 @@
             display: inline-flex;
             align-items: center;
             border-radius: 8px;
-            border: 2px solid var(--primary);
+            border: 1px solid var(--border);
             background: var(--bg-card);
-            color: var(--primary);
-            transition: border-color 0.2s, color 0.2s, background 0.2s;
+            color: #8b949e;
+            transition: border-color 0.2s, color 0.2s;
             user-select: none;
             text-decoration: none;
             white-space: nowrap;
         }
         #map-btn:hover, #map-btn:active, #map-btn.active {
-            background: rgba(0, 255, 136, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
         }
+        /* Keep the contact list clear of the button */
+        .aircraft-list-panel { max-height: calc(100vh - 232px); }
 
         /* Main layout: featured left, contacts right */
         .main-grid {
@@ -488,6 +496,8 @@
             .contacts-column {
                 max-height: none;
             }
+            .aircraft-list-panel { max-height: none; }
+            body { padding-bottom: 100px; }
         }
 
         /* 800x480 Pi touchscreen kiosk — no scroll, everything visible */
@@ -504,7 +514,8 @@
             .status-badge { padding: 2px 5px; font-size: 0.55rem; }
             .threshold-control label { font-size: 0.55rem; }
             .threshold-value { font-size: 0.65rem; }
-            #map-btn { padding: 4px 16px; min-height: 36px; font-size: 0.9rem; border-width: 1px; }
+            #map-btn { right: 4px; bottom: 4px; padding: 4px 16px; min-height: 36px; font-size: 0.9rem; }
+            .aircraft-list-panel { max-height: calc(100vh - 88px); }
 
             .main-grid { gap: 4px; grid-template-columns: 1fr 220px; }
             .featured-panel .panel-header,
@@ -759,8 +770,6 @@
                 <span id="demo-badge"></span>
             </div>
             <div class="header-right" style="align-items:center;">
-                <a id="map-btn" href="/map" title="Open the map">⬤ MAP</a>
-
                 <div class="threshold-control">
                     <label>Max Age</label>
                     <input type="range" id="threshold-slider" min="10" max="300" step="10" value="120">
@@ -810,6 +819,8 @@
             ADS-B Flight Dashboard | Data from dump1090-fa | Refreshes every 2s
         </div>
     </div>
+
+    <a id="map-btn" href="/map" title="Open the map">⬤ MAP</a>
 
     <script>
         // ============================================================
