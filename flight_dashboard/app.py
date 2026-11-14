@@ -5,15 +5,19 @@ Reads local dump1090 aircraft data and displays overhead flights
 Enriches data with aircraft database lookups
 """
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file, abort
+import gzip
 import json
-import math
 import os
-import random
 import subprocess
-import stat
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from pathlib import Path
+
+from demo import DEMO_HOME, demo_snapshot
+from geo import bearing_deg, distance_mi, elevation_deg
+from lookups import Lookups, route_is_plausible
+from tracker import Tracker
 
 app = Flask(__name__)
 
@@ -42,6 +46,7 @@ _load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 
 # Configuration
 DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
+DEMO_SCENARIO = os.environ.get('DEMO_SCENARIO', '')    # emergency, stalled, or empty
 seen_threshold = int(os.environ.get('SEEN_THRESHOLD', 120))
 DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Dave's ADS-B Radar")
 
@@ -49,12 +54,29 @@ DASHBOARD_TITLE = os.environ.get('DASHBOARD_TITLE', "Dave's ADS-B Radar")
 # (kept out of source so the antenna's position isn't published).
 HOME_LAT = _env_float('HOME_LAT')
 HOME_LON = _env_float('HOME_LON')
+if DEMO_MODE and (HOME_LAT is None or HOME_LON is None):
+    HOME_LAT, HOME_LON = DEMO_HOME
 HOME_SET = HOME_LAT is not None and HOME_LON is not None
 if not HOME_SET:
-    print("WARNING: HOME_LAT/HOME_LON not set; distance and bearing will be blank. "
+    print("WARNING: HOME_LAT/HOME_LON not set; the map, distance and bearing will be blank. "
           "Copy .env.example to .env and fill them in.")
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+
+# Map view
+MAP_RANGE_MI = float(os.environ.get('MAP_RANGE_MI', 25))      # miles from the antenna to the screen edge
+RANGE_RINGS_MI = [float(x) for x in os.environ.get('RANGE_RINGS_MI', '5,10,20').split(',') if x.strip()]
+TRAIL_SECONDS = int(os.environ.get('TRAIL_SECONDS', 300))
+STALL_SECONDS = int(os.environ.get('STALL_SECONDS', 180))     # no new messages for this long = receiver stalled
+MAP_CLOSE_SECONDS = int(os.environ.get('MAP_CLOSE_SECONDS', 60))   # untouched map returns to the main view; 0 = stay open
+
+# Route and photo lookups (adsbdb.com, planespotters.net). Set LOOKUPS=false to stay offline.
+LOOKUPS_ENABLED = os.environ.get('LOOKUPS', 'true').lower() == 'true'
+CONTACT_URL = os.environ.get('CONTACT_URL', 'https://github.com/Dave781/Custom-Flight-Radar-Dashboard')
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
 AIRCRAFT_DB_FILE = os.path.join(DATA_DIR, 'aircraft_db.json')
+MAP_FILE = os.path.join(DATA_DIR, 'map.pmtiles')
+AIRPORTS_FILE = os.path.join(DATA_DIR, 'airports.json')
 DUMP1090_DIR = "/run/dump1090"
 
 # dump1090-fa stores aircraft data here
@@ -133,39 +155,6 @@ def find_aircraft_json():
             return path
     return None
 
-def haversine_distance(lat1, lon1, lat2, lon2):
-    """Calculate great-circle distance in miles between two lat/lon points"""
-    R = 3958.8  # Earth radius in miles
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
-
-def calculate_bearing(lat1, lon1, lat2, lon2):
-    """Calculate bearing from point 1 to point 2.
-    Returns (degrees 0-360, 8-point cardinal, 16-point cardinal).
-    """
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dlambda = math.radians(lon2 - lon1)
-    x = math.sin(dlambda) * math.cos(phi2)
-    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda)
-    bearing = (math.degrees(math.atan2(x, y)) + 360) % 360
-    bearing_rounded = round(bearing, 1)
-
-    # 8-point cardinal (45° increments, centred on each direction)
-    dirs8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-    card8 = dirs8[int((bearing + 22.5) / 45) % 8]
-
-    # 16-point cardinal (22.5° increments)
-    dirs16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-              'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
-    card16 = dirs16[int((bearing + 11.25) / 22.5) % 16]
-
-    return bearing_rounded, card8, card16
-
-
 def get_airline_name(callsign):
     """Extract airline name from callsign"""
     if not callsign or len(callsign) < 3:
@@ -183,31 +172,10 @@ def calculate_age(built_year):
     except:
         return None
 
-def get_demo_data():
-    """Generate demo data with real aircraft hex codes"""
-    # Real aircraft hex codes that exist in the database
-    sample_flights = [
-        {"hex": "a0a0a0", "flight": "DAL1412", "lat": 47.4502, "lon": -122.3088, "alt_baro": 1375, "gs": 127, "track": 180, "baro_rate": -768, "squawk": "1200", "rssi": -3.2, "seen": 2, "messages": 1542, "alt_geom": 1425},
-        {"hex": "a6b3c4", "flight": "UAL2294", "lat": 47.5012, "lon": -122.2901, "alt_baro": 32000, "gs": 445, "track": 270, "baro_rate": 0, "squawk": "4521", "rssi": -5.1, "seen": 5, "messages": 892, "alt_geom": 32150},
-        {"hex": "a1c2d3", "flight": "AAL847", "lat": 47.4221, "lon": -122.3567, "alt_baro": 18500, "gs": 320, "track": 45, "baro_rate": 1800, "squawk": "7234", "rssi": -8.4, "seen": 1, "messages": 2341, "alt_geom": 18650},
-        {"hex": "a9b8c7", "flight": "SWA1823", "lat": 47.3890, "lon": -122.4012, "alt_baro": 38000, "gs": 480, "track": 90, "baro_rate": 0, "squawk": "5765", "rssi": -12.1, "seen": 8, "messages": 445, "alt_geom": 38200},
-        {"hex": "a4d5e6", "flight": "ASA512", "lat": 47.5234, "lon": -122.2456, "alt_baro": 8500, "gs": 210, "track": 315, "baro_rate": -2200, "squawk": "3342", "rssi": -6.7, "seen": 3, "messages": 1123, "alt_geom": 8600},
-        {"hex": "a7e8f9", "flight": "JBU915", "lat": 47.4678, "lon": -122.3234, "alt_baro": 25000, "gs": 390, "track": 135, "baro_rate": 500, "squawk": "2341", "rssi": -9.2, "seen": 4, "messages": 789, "alt_geom": 25100},
-    ]
-
-    # Randomize slightly for realism
-    for ac in sample_flights:
-        ac['alt_baro'] += random.randint(-200, 200)
-        ac['gs'] += random.randint(-5, 5)
-        ac['seen'] = random.randint(1, 8)
-        ac['baro_rate'] += random.randint(-50, 50)
-
-    return {"aircraft": sample_flights, "now": datetime.now().timestamp()}
-
 def get_aircraft_data():
     """Read aircraft data from local dump1090 JSON file"""
     if DEMO_MODE:
-        return get_demo_data()
+        return demo_snapshot(time.time(), DEMO_SCENARIO)
 
     json_path = find_aircraft_json()
 
@@ -220,6 +188,60 @@ def get_aircraft_data():
         return data
     except Exception as e:
         return {"error": str(e), "aircraft": [], "now": 0}
+
+HEAVY_TYPECODES = {
+    'B741', 'B742', 'B744', 'B748', 'BLCF', 'B762', 'B763', 'B764', 'B772', 'B773', 'B77L', 'B77W',
+    'B778', 'B779', 'B788', 'B789', 'B78X', 'A306', 'A310', 'A332', 'A333', 'A338', 'A339', 'A342',
+    'A343', 'A345', 'A346', 'A359', 'A35K', 'A388', 'MD11', 'DC10', 'A124', 'A225', 'IL76', 'A400',
+    'C5', 'C5M', 'C17', 'K35R', 'KC10', 'E3TF', 'E3CF', 'E6', 'B52',
+}
+HELICOPTER_TYPECODES = {
+    'A109', 'A119', 'A139', 'A169', 'AS32', 'AS50', 'AS55', 'AS65', 'B06', 'B06T', 'B205', 'B212',
+    'B407', 'B412', 'B429', 'B430', 'B47G', 'B505', 'BK17', 'EC20', 'EC25', 'EC30', 'EC35', 'EC45',
+    'EC55', 'EC75', 'EN28', 'EN48', 'G2CA', 'H47', 'H53', 'H60', 'H64', 'H500', 'MD52', 'MD60',
+    'R22', 'R44', 'R66', 'S61', 'S76', 'S92', 'UH1', 'V22',
+}
+PROP_TYPECODES = {
+    'AA5', 'AC11', 'AT43', 'AT45', 'AT72', 'AT75', 'AT76', 'B190', 'B350', 'BE20', 'BE30', 'BE33',
+    'BE35', 'BE36', 'BE55', 'BE58', 'BE99', 'BE9L', 'BL8', 'C130', 'C150', 'C152', 'C162', 'C170',
+    'C172', 'C177', 'C180', 'C182', 'C185', 'C2', 'C206', 'C208', 'C210', 'C30J', 'C310', 'C340',
+    'C402', 'C404', 'C414', 'C421', 'C72R', 'C82R', 'CH7A', 'COL3', 'COL4', 'DA20', 'DA40', 'DA42',
+    'DA62', 'DH2T', 'DH3T', 'DH8A', 'DH8B', 'DH8C', 'DH8D', 'DHC2', 'DHC3', 'DHC6', 'E120', 'E2',
+    'EVOT', 'G115', 'GLAS', 'KODI', 'LNC4', 'M20P', 'M20T', 'M7', 'P210', 'P28A', 'P28B', 'P28R',
+    'P3', 'P32R', 'P46T', 'P68', 'PA12', 'PA18', 'PA22', 'PA24', 'PA31', 'PA32', 'PA34', 'PA38',
+    'PA44', 'PA46', 'PC12', 'PC6T', 'RV10', 'RV12', 'RV6', 'RV7', 'RV8', 'S22T', 'SF34', 'SR20',
+    'SR22', 'SW4', 'T206', 'T210', 'TBM7', 'TBM8', 'TBM9',
+}
+CARDINALS_8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+CARDINALS_16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+
+
+def is_military_hex(hex_upper):
+    """Military blocks of the ICAO 24-bit address space (US, UK, Australia)."""
+    try:
+        value = int(hex_upper, 16)
+    except ValueError:
+        return False
+    return (0xAE0000 <= value <= 0xAEFFFF          # US military
+            or 0xADF000 <= value <= 0xADFFFF       # US military
+            or 0x43C000 <= value <= 0x43CFFF       # UK military
+            or 0x7CF800 <= value <= 0x7CFFFE)      # Australian military
+
+
+def pick_icon(is_military, typecode, adsb_category):
+    """Which silhouette the map draws: military, helicopter, heavy, prop, or jet."""
+    category = (adsb_category or '').upper()
+    if is_military:
+        return 'military'
+    if typecode in HELICOPTER_TYPECODES or category == 'A7':
+        return 'helicopter'
+    if typecode in HEAVY_TYPECODES or category == 'A5':
+        return 'heavy'
+    if typecode in PROP_TYPECODES or category in ('A1', 'B1', 'B4'):
+        return 'prop'
+    return 'jet'
+
 
 def enrich_aircraft(aircraft):
     """Add computed fields and database lookups to aircraft data"""
@@ -267,7 +289,9 @@ def enrich_aircraft(aircraft):
             ac['vertical_icon'] = '?'
 
         # Database lookup
-        db_info = aircraft_db.get(hex_code, {})
+        # (demo aircraft carry their own record, so demo mode needs no database)
+        db_info = ac.pop('_db', None) or aircraft_db.get(hex_code, {})
+        adsb_category = ac.get('category')          # ADS-B emitter category, e.g. "A3"
         ac['registration'] = db_info.get('registration') or None
         ac['manufacturer'] = db_info.get('manufacturer') or None
         ac['model'] = db_info.get('model') or None
@@ -281,15 +305,20 @@ def enrich_aircraft(aircraft):
         ac['airline'] = get_airline_name(callsign) or db_info.get('owner') or None
         ac['age'] = calculate_age(db_info.get('built'))
         if HOME_SET:
-            ac['distance_mi'] = haversine_distance(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+            ac['distance_mi'] = round(distance_mi(HOME_LAT, HOME_LON, ac['lat'], ac['lon']), 1)
             # Bearing from antenna to aircraft
-            bearing_deg, bearing_card8, bearing_card16 = calculate_bearing(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+            bearing = bearing_deg(HOME_LAT, HOME_LON, ac['lat'], ac['lon'])
+            ac['bearing_deg'] = round(bearing, 1)
+            ac['bearing_cardinal'] = CARDINALS_8[int((bearing + 22.5) / 45) % 8]          # 8-point
+            ac['bearing_cardinal16'] = CARDINALS_16[int((bearing + 11.25) / 22.5) % 16]   # 16-point
+            # Angle above the horizon: where to look in the sky
+            altitude = ac['altitude_baro'] if isinstance(ac['altitude_baro'], (int, float)) else None
+            elevation = elevation_deg(ac['distance_mi'], altitude)
+            ac['elevation_deg'] = round(elevation) if elevation is not None else None
         else:
             ac['distance_mi'] = None
-            bearing_deg = bearing_card8 = bearing_card16 = None
-        ac['bearing_deg'] = bearing_deg
-        ac['bearing_cardinal'] = bearing_card8    # 8-point for list
-        ac['bearing_cardinal16'] = bearing_card16  # 16-point for detail panel
+            ac['bearing_deg'] = ac['bearing_cardinal'] = ac['bearing_cardinal16'] = None
+            ac['elevation_deg'] = None
 
         # Aircraft type display string
         if ac['manufacturer'] and ac['model']:
@@ -302,41 +331,10 @@ def enrich_aircraft(aircraft):
             ac['aircraft_type'] = None
 
         # Aircraft classification: military, heavy, or normal
-        hex_upper = hex_code.upper()
-        is_military = False
-        # US military: AE prefix
-        if hex_upper.startswith('AE'):
-            is_military = True
-        # US military range ADF000–ADFFFF
-        elif len(hex_upper) == 6:
-            try:
-                hex_val = int(hex_upper, 16)
-                if 0xADF000 <= hex_val <= 0xADFFFF:
-                    is_military = True
-            except ValueError:
-                pass
-        # UK military: 43 prefix (43C000–43CFFF and 43EC00–43EFFF; 43 prefix is
-        # the full UK civil/mil allocation so we flag the whole block per spec)
-        if hex_upper.startswith('43'):
-            is_military = True
-        # Australian military: 7CF800–7CFFFE
-        # (7C0000–7FFFFF is the full Australian range including civil;
-        #  only the 7CF8xx sub-block is allocated to the RAAF/military)
-        if len(hex_upper) == 6:
-            try:
-                hex_val = int(hex_upper, 16)
-                if 0x7CF800 <= hex_val <= 0x7CFFFE:
-                    is_military = True
-            except ValueError:
-                pass
-
-        HEAVY_TYPECODES = {
-            'B748', 'B744', 'B77W', 'B772', 'B773', 'B788', 'B789', 'B78X',
-            'A388', 'A332', 'A333', 'A342', 'A343', 'A345', 'A346', 'A359',
-            'A35K', 'C5', 'C17',
-        }
         typecode_upper = (ac['typecode'] or '').upper()
+        is_military = is_military_hex(hex_code)
         is_heavy = typecode_upper in HEAVY_TYPECODES
+        ac['icon'] = pick_icon(is_military, typecode_upper, adsb_category)
 
         ac['is_military'] = is_military
         ac['is_heavy'] = is_heavy
@@ -353,10 +351,94 @@ def enrich_aircraft(aircraft):
     enriched.sort(key=lambda x: (x['distance_mi'] is None, x.get('distance_mi') or 9999, -(x.get('rssi') or -999)))
     return enriched
 
+def asset_version():
+    """Newest edit time of our own page files, used to bust the browser cache after a deploy."""
+    newest = 0
+    for folder in ('static/js', 'static/css', 'templates'):
+        path = os.path.join(BASE_DIR, folder)
+        for name in os.listdir(path):
+            newest = max(newest, os.path.getmtime(os.path.join(path, name)))
+    return int(newest)
+
+
+def client_config():
+    return {
+        'title': DASHBOARD_TITLE,
+        'home': [HOME_LON, HOME_LAT] if HOME_SET else None,
+        'range_mi': MAP_RANGE_MI,
+        'rings_mi': RANGE_RINGS_MI,
+        'trail_seconds': TRAIL_SECONDS,
+        'has_map': os.path.exists(MAP_FILE),
+        'has_airports': os.path.exists(AIRPORTS_FILE),
+        'lookups': LOOKUPS_ENABLED,
+        'demo_mode': DEMO_MODE,
+        'close_seconds': MAP_CLOSE_SECONDS,
+    }
+
+
+# ---------- light on the wire ----------
+# The kiosk often reaches this Pi over slow Wi-Fi. Text is sent gzipped, and files that
+# do not change between deploys are cached by the browser so the map opens from disk.
+
+LONG_CACHE_PREFIXES = ('/static/vendor/', '/static/fonts/')
+LONG_CACHE_SECONDS = 7 * 24 * 3600
+GZIP_TYPES = ('text/', 'application/json', 'application/javascript', 'image/svg+xml')
+GZIP_MIN_BYTES = 1024
+_gzip_cache = {}          # (path, etag) -> compressed bytes, for static files
+
+
+@app.after_request
+def light_on_the_wire(response):
+    path = request.path
+    if response.status_code == 200:
+        if path.startswith(LONG_CACHE_PREFIXES):
+            response.cache_control.no_cache = None
+            response.cache_control.public = True
+            response.cache_control.max_age = LONG_CACHE_SECONDS
+        elif path.startswith('/static/'):
+            response.cache_control.max_age = None
+            response.cache_control.no_cache = True      # keep a copy, but ask if it changed
+
+    if (response.status_code != 200 or request.method != 'GET'
+            or 'gzip' not in request.headers.get('Accept-Encoding', '')
+            or request.headers.get('Range')
+            or response.headers.get('Content-Encoding')
+            or not (response.mimetype or '').startswith(GZIP_TYPES)):
+        return response
+
+    etag = response.headers.get('ETag')
+    key = (path, etag) if path.startswith('/static/') and etag else None
+    body = _gzip_cache.get(key) if key else None
+    if body is None:
+        response.direct_passthrough = False
+        raw = response.get_data()
+        if len(raw) < GZIP_MIN_BYTES:
+            return response
+        body = gzip.compress(raw, compresslevel=6 if key else 4)
+        if key:
+            _gzip_cache[key] = body
+    response.direct_passthrough = False
+    response.set_data(body)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = str(len(body))
+    response.headers.add('Vary', 'Accept-Encoding')
+    return response
+
+
 @app.route('/')
 def index():
-    """Main dashboard page"""
-    return render_template('index.html', home_lat=HOME_LAT, home_lon=HOME_LON)
+    """Main view: the primary target and the list of all contacts"""
+    return render_template('index.html')
+
+@app.route('/map')
+def map_view():
+    """Expanded view: the live map, opened from the MAP button on the main view"""
+    return render_template('map.html', title=DASHBOARD_TITLE, config=client_config(), v=asset_version())
+
+@app.route('/debug')
+def debug():
+    """Raw contact table, receiver numbers, and settings"""
+    return render_template('debug.html', title=DASHBOARD_TITLE, v=asset_version())
 
 @app.route('/api/aircraft')
 def api_aircraft():
@@ -364,6 +446,8 @@ def api_aircraft():
     data = get_aircraft_data()
 
     if 'error' in data and data['error']:
+        data['receiver'] = tracker.receiver_status()
+        data['today'] = tracker.today()
         return jsonify(data)
 
     aircraft = enrich_aircraft(data.get('aircraft', []))
@@ -376,7 +460,65 @@ def api_aircraft():
         'demo_mode': DEMO_MODE,
         'seen_threshold': seen_threshold,
         'dashboard_title': DASHBOARD_TITLE,
+        'receiver': tracker.receiver_status(),
+        'today': tracker.today(),
     })
+
+@app.route('/api/trails')
+def api_trails():
+    """Recent track of every aircraft: {hex: [[lon, lat, altitude, time], ...]}"""
+    return jsonify(tracker.trails_snapshot())
+
+@app.route('/api/flight/<hex_code>')
+def api_flight(hex_code):
+    """Route and photo for one aircraft. Looked up when the page selects it."""
+    callsign = request.args.get('callsign', '')
+    route_job = lookup_pool.submit(lookups.route, callsign)
+    photo_job = lookup_pool.submit(lookups.photo, hex_code)
+    route, photo = route_job.result(), photo_job.result()
+    if route:
+        try:
+            lat, lon = float(request.args['lat']), float(request.args['lon'])
+            altitude = float(request.args['alt']) if request.args.get('alt') else None
+        except (KeyError, ValueError):
+            route = None
+        else:
+            if not route_is_plausible(route, lat, lon, altitude):
+                route = None
+    return jsonify({'route': route, 'photo': photo})
+
+@app.route('/api/airports')
+def api_airports():
+    if not os.path.exists(AIRPORTS_FILE):
+        return jsonify([])
+    return send_file(AIRPORTS_FILE, mimetype='application/json', max_age=3600)
+
+@app.route('/api/status')
+def api_status():
+    """What the debug page shows about the install."""
+    def file_info(path):
+        if not os.path.exists(path):
+            return None
+        size = os.path.getsize(path)
+        return {'size': f'{size / 1e6:.1f} MB' if size >= 1e6 else f'{size / 1e3:.0f} KB',
+                'updated': datetime.fromtimestamp(os.path.getmtime(path)).strftime('%m/%d/%Y')}
+    return jsonify({
+        'config': client_config(),
+        'receiver': tracker.receiver_status(),
+        'today': tracker.today(),
+        'aircraft_db': len(aircraft_db),
+        'map_file': file_info(MAP_FILE),
+        'airports_file': file_info(AIRPORTS_FILE),
+        'source': 'demo' if DEMO_MODE else find_aircraft_json(),
+        'stall_seconds': STALL_SECONDS,
+    })
+
+@app.route('/map.pmtiles')
+def map_tiles():
+    """The basemap. The browser reads it with HTTP range requests."""
+    if not os.path.exists(MAP_FILE):
+        abort(404)
+    return send_file(MAP_FILE, mimetype='application/octet-stream', conditional=True, max_age=24 * 3600)
 
 @app.route('/api/settings/seen-threshold', methods=['GET', 'POST'])
 def api_seen_threshold():
@@ -390,6 +532,18 @@ def api_seen_threshold():
 # Load database on startup
 load_aircraft_db()
 
+tracker = Tracker(get_aircraft_data, (HOME_LAT, HOME_LON) if HOME_SET else None,
+                  TRAIL_SECONDS, STALL_SECONDS,
+                  os.path.join(DATA_DIR, 'today-demo.json' if DEMO_MODE else 'today.json'))
+lookups = Lookups(os.path.join(DATA_DIR, 'lookup_cache.json'), CONTACT_URL, LOOKUPS_ENABLED)
+lookup_pool = ThreadPoolExecutor(max_workers=4)
+if DEMO_MODE:
+    # Fill the trails so the demo map is not empty for its first few minutes.
+    _now = time.time()
+    for _t in range(TRAIL_SECONDS, 0, -2):
+        tracker.sample(demo_snapshot(_now - _t), _now - _t)
+tracker.start()
+
 if __name__ == '__main__':
     print("=" * 50)
     print("  ADS-B FLIGHT DASHBOARD")
@@ -401,7 +555,10 @@ if __name__ == '__main__':
         # Setup dump1090 directory
         setup_dump1090_directory()
     print(f"  DATABASE: {len(aircraft_db)} aircraft loaded")
+    if not os.path.exists(MAP_FILE):
+        print("  MAP: not downloaded yet. Run: python3 download_map.py")
     port = int(os.environ.get('PORT', 8080))
     print(f"  URL: http://localhost:{port}")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # HOST picks the address to listen on, e.g. one interface's IP. The default is every IPv4 address.
+    app.run(host=os.environ.get('HOST', '0.0.0.0'), port=port, debug=False)

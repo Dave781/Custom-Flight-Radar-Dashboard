@@ -1,5 +1,7 @@
 venv/
-data/aircraft_db.json
 __pycache__/
 *.pyc
 .env
+
+# Generated on each install (see download_db.py and download_map.py)
+flight_dashboard/data/

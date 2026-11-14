@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1017">
+    <title>{{ title }} · details</title>
+    <link rel="stylesheet" href="/static/css/app.css?v={{ v }}">
+    <link rel="stylesheet" href="/static/css/debug.css?v={{ v }}">
+</head>
+<body class="debug">
+    <header>
+        <a class="back" href="/map" aria-label="Back to map">
+            <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <h1>Details</h1>
+        <span id="d-state" class="pill"></span>
+    </header>
+
+    <section class="tiles">
+        <div class="tile"><span class="k">Messages / s</span><span class="v num" id="d-rate">–</span></div>
+        <div class="tile"><span class="k">On map now</span><span class="v num" id="d-now">–</span></div>
+        <div class="tile"><span class="k">Seen today</span><span class="v num" id="d-today">–</span></div>
+        <div class="tile"><span class="k">Farthest</span><span class="v num" id="d-far">–</span><span class="s" id="d-far-who"></span></div>
+        <div class="tile"><span class="k">Highest</span><span class="v num" id="d-high">–</span><span class="s" id="d-high-who"></span></div>
+        <div class="tile"><span class="k">Fastest</span><span class="v num" id="d-fast">–</span><span class="s" id="d-fast-who"></span></div>
+    </section>
+
+    <section class="row">
+        <div class="box">
+            <h2>Setup</h2>
+            <dl id="setup"></dl>
+        </div>
+        <div class="box">
+            <h2>Max contact age</h2>
+            <div class="slider">
+                <input type="range" id="threshold" min="10" max="300" step="10" value="120">
+                <span class="num" id="threshold-value">120 s</span>
+            </div>
+            <p class="hint">Planes not heard from for longer than this leave the map.</p>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2>Contacts</h2>
+        <div class="scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Callsign</th><th>Hex</th><th>Tail</th><th>Type</th>
+                        <th class="r">Alt ft</th><th class="r">GPS alt</th><th class="r">Speed kt</th>
+                        <th class="r">Heading</th><th class="r">Climb fpm</th><th>Squawk</th>
+                        <th class="r">Dist mi</th><th class="r">Bearing</th><th class="r">Up</th>
+                        <th class="r">Signal dBFS</th><th class="r">Msgs</th><th class="r">Seen s</th>
+                        <th>Position</th>
+                    </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <script type="module" src="/static/js/debug.js?v={{ v }}"></script>
+</body>
+</html>
