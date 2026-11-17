@@ -207,10 +207,13 @@ class Api(unittest.TestCase):
         with open(os.path.join(os.path.dirname(dashboard.__file__), 'static', 'js', 'app.js')) as f:
             self.assertNotIn('.href = photo', f.read())
 
-    def test_home_has_the_photo_preview(self):
+    def test_home_has_the_plane_view(self):
         home = self.client.get('/').data
-        self.assertIn(b'id="photo-preview"', home)
-        self.assertIn(b'hidden', home.split(b'id="photo-preview"')[1].split(b'>')[0])
+        self.assertIn(b'id="plane-view"', home)
+        self.assertIn(b'hidden', home.split(b'id="plane-view"')[1].split(b'>')[0])   # closed until a plane is tapped
+        self.assertIn(b'id="pv-map" href="/map"', home)                                # its MAP button stays on this site
+        self.assertIn(b'onclick="openPlane(', home)                                    # a contact row opens it
+        self.assertNotIn(b'<a id="pv-img"', home)
 
     def test_text_is_gzipped_and_big_files_are_cached(self):
         import gzip
