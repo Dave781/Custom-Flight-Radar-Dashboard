@@ -10,6 +10,7 @@ A live dashboard of the aircraft your own antenna hears, built for a Raspberry P
 |---|---|
 | Primary target | The closest aircraft, or the one you tap in the list: callsign, airline, type, altitude, speed, heading, climb rate, squawk, and every other field the receiver and the aircraft database have |
 | All contacts | Every aircraft in range, closest first, with distance, bearing, altitude, speed, and climb or descent |
+| Plane view | Tap a plane, in the list or in the primary target, to see its photo, route, and live altitude, speed, and distance. MAP shows that plane on the map. A tap anywhere else closes it, and it closes by itself after a minute. The photo is never a link, so a tap cannot leave the dashboard |
 | Header | Receiver status (RECEIVING or NO SIGNAL), the MAP button, the max-age slider, aircraft count, and last update time |
 | Alerts | A banner for squawk 7500, 7600, or 7700 |
 

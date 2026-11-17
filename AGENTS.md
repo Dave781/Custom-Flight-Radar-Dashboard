@@ -26,7 +26,7 @@ RTL-SDR dongle
 | `flight_dashboard/demo.py` | Sample traffic for `DEMO_MODE=true` |
 | `flight_dashboard/download_map.py` | Cuts the area around the antenna out of the Protomaps planet file into `data/map.pmtiles`, and builds `data/airports.json` from OurAirports. Standard library only |
 | `flight_dashboard/download_db.py` | Builds `data/aircraft_db.json` from the OpenSky aircraft database |
-| `flight_dashboard/templates/index.html` | Main view (`/`): primary target and contact list. One file with its own CSS and JavaScript. Polls every 2 seconds |
+| `flight_dashboard/templates/index.html` | Main view (`/`): primary target, contact list, and the plane view overlay (`#plane-view`) that a tap on a plane opens. One file with its own CSS and JavaScript. Polls every 2 seconds |
 | `flight_dashboard/templates/map.html` | Map view markup (`/map`) |
 | `flight_dashboard/templates/debug.html` | Details page markup (`/debug`) |
 | `flight_dashboard/static/js/app.js` | Map page logic: polling, selection, card, alerts, dimming |
@@ -125,6 +125,7 @@ The kiosk often reaches the server over weak Wi-Fi. On 11/10/2026 the link betwe
 | Pinning | A tapped plane stays selected for 60 seconds without a touch | `tick()` in `app.js` |
 | View reset | A moved map returns to the home view after 45 seconds without a touch | `tick()` in `app.js` |
 | Closing | The map returns to the main view after `MAP_CLOSE_SECONDS` without a touch, unless an emergency is showing or the address has `?stay` | `tick()` and `closeMap()` in `app.js` |
+| Plane view | A tap on a contact row or on the primary target opens `#plane-view` with the photo and route from `/api/flight/<hex>`. Its MAP link is `/map#<hex>`. Any other tap closes it, and so does 60 seconds. No page may link to another site: the kiosk has no back button | `openPlaneView()` in `index.html` |
 | Hand-off | The main view's MAP link carries the primary target as `/map#<hex>`. Closing the map with a pinned plane returns `/#<hex>` | `updateDisplay()` in `index.html`, `closeMap()` in `app.js` |
 | Plane position | The last report moved forward by its age, up to 8 seconds | `drawnPosition()` in `app.js` |
 | Icon shape | Military hex block, then helicopter, heavy, and prop type codes, then the ADS-B emitter category | `pick_icon()` in `app.py` |

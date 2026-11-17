@@ -475,50 +475,101 @@
         /* Keep the contact list clear of the button */
         .aircraft-list-panel { max-height: calc(100vh - 232px); }
 
-        /* Photo preview: opens when the primary target's callsign is tapped */
-        .featured-callsign { cursor: pointer; }
-        #photo-preview {
+        /* Plane view: opens when a plane is tapped, either a row in All Contacts or
+           the primary target. Its MAP button shows the same plane on the map.
+           A tap anywhere else closes it. */
+        #featured-content { cursor: pointer; }
+        #plane-view {
             position: fixed;
             inset: 0;
             z-index: 100;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(5, 6, 10, 0.9);
+            background: rgba(5, 6, 10, 0.92);
             cursor: pointer;
         }
-        #photo-preview[hidden] { display: none; }
-        .pp-box {
-            width: min(720px, 92vw);
+        #plane-view[hidden] { display: none; }
+        .pv-box {
+            width: min(760px, 94vw);
             background: var(--bg-panel);
             border: 1px solid var(--border);
             border-radius: 6px;
             overflow: hidden;
         }
-        .pp-frame {
+        .pv-frame {
             position: relative;
             aspect-ratio: 3 / 2;
-            max-height: 70vh;
+            max-height: 62vh;
             width: 100%;
             background: #0f151e;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        #pp-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        #pp-img[hidden] { display: none; }
-        #pp-msg { color: var(--text-dim); font-size: 1rem; letter-spacing: 1px; }
-        .pp-caption {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 16px;
-            padding: 12px 18px 6px;
-            font-size: 1rem;
+        #pv-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        #pv-img[hidden] { display: none; }
+        #pv-msg { color: var(--text-dim); font-size: 1rem; letter-spacing: 1px; }
+        #pv-by {
+            position: absolute;
+            right: 10px;
+            bottom: 8px;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 0.7rem;
+            text-shadow: 0 1px 3px #000;
         }
-        #pp-title { color: var(--primary); }
-        #pp-by { color: var(--text-dim); font-size: 0.8rem; text-align: right; }
-        .pp-hint { padding: 0 18px 12px; color: var(--text-dim); font-size: 0.7rem; }
+        .pv-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 14px 18px;
+        }
+        .pv-text { min-width: 0; }
+        .pv-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pv-callsign {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            line-height: 1.15;
+            color: var(--primary);
+        }
+        #pv-route { margin-left: 16px; font-size: 1.25rem; letter-spacing: 1px; color: var(--secondary); }
+        #pv-sub { margin-top: 2px; font-size: 0.95rem; color: var(--text); }
+        #pv-stats { margin-top: 4px; font-size: 0.95rem; color: var(--text-dim); }
+        /* Same size as the corner MAP button: about 10 mm on the 8 inch kiosk */
+        #pv-map {
+            flex: none;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            padding: 14px 30px;
+            min-height: 72px;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: #8b949e;
+            text-decoration: none;
+            white-space: nowrap;
+            user-select: none;
+        }
+        #pv-map:hover, #pv-map:active { border-color: var(--primary); color: var(--primary); }
+        @media (max-width: 600px) {
+            #pv-callsign { font-size: 1.35rem; }
+            #pv-route { margin-left: 10px; font-size: 1rem; }
+            #pv-map { padding: 10px 16px; min-height: 56px; font-size: 1.1rem; letter-spacing: 2px; }
+            .pv-info { gap: 10px; padding: 10px 12px; }
+        }
+        @media (max-height: 520px) {
+            .pv-frame { max-height: 56vh; }
+            .pv-info { padding: 8px 12px; }
+            #pv-callsign { font-size: 1.25rem; }
+            #pv-route { font-size: 0.95rem; }
+            #pv-sub, #pv-stats { font-size: 0.75rem; margin-top: 0; }
+            #pv-map { padding: 6px 16px; min-height: 44px; font-size: 1rem; letter-spacing: 2px; }
+        }
 
         /* Main layout: featured left, contacts right */
         .main-grid {
@@ -867,14 +918,21 @@
 
     <a id="map-btn" href="/map" title="Open the map">⬤ MAP</a>
 
-    <div id="photo-preview" role="dialog" aria-label="Aircraft photo" hidden>
-        <div class="pp-box">
-            <div class="pp-frame">
-                <img id="pp-img" alt="" hidden>
-                <div id="pp-msg"></div>
+    <div id="plane-view" role="dialog" aria-label="Aircraft" hidden>
+        <div class="pv-box">
+            <div class="pv-frame">
+                <img id="pv-img" alt="" hidden>
+                <div id="pv-msg"></div>
+                <span id="pv-by"></span>
             </div>
-            <div class="pp-caption"><span id="pp-title"></span><span id="pp-by"></span></div>
-            <div class="pp-hint">Tap anywhere to close</div>
+            <div class="pv-info">
+                <div class="pv-text">
+                    <div><span id="pv-callsign"></span><span id="pv-route"></span></div>
+                    <div id="pv-sub"></div>
+                    <div id="pv-stats"></div>
+                </div>
+                <a id="pv-map" href="/map" title="Show this plane on the map">⬤ MAP</a>
+            </div>
         </div>
     </div>
 
@@ -1152,7 +1210,7 @@
                 }
 
                 return `
-                    <div class="${itemClasses}" onclick="selectAircraft(${i})">
+                    <div class="${itemClasses}" onclick="openPlane(${i})">
                         <div class="aircraft-item-header">
                             <span class="aircraft-item-callsign">${ac.callsign}${badgeHtml}</span>
                             ${typeDisplay ? `<span class="aircraft-item-type">${typeDisplay}</span>` : ''}
@@ -1181,65 +1239,100 @@
         }
 
         // ============================================================
-        //  Photo preview: tap the primary target's callsign
+        //  Plane view: tap a plane to see its photo and route.
+        //  MAP shows it on the map. A tap anywhere else closes the view.
         // ============================================================
-        const photoCache = new Map();   // icao hex -> photo, or null when there is none
-        const PHOTO_PREVIEW_MS = 60000; // the kiosk closes it by itself
-        let previewHex = null;
-        let previewTimer = null;
+        const flightCache = new Map();  // "hex|callsign" -> { photo, route } from /api/flight
+        const PLANE_VIEW_MS = 60000;    // the kiosk closes it by itself
+        let planeHex = null;
+        let planeTimer = null;
+        const pv = id => document.getElementById(id);
 
-        function closePhotoPreview() {
-            document.getElementById('photo-preview').hidden = true;
-            previewHex = null;
-            clearTimeout(previewTimer);
+        function closePlaneView() {
+            pv('plane-view').hidden = true;
+            planeHex = null;
+            clearTimeout(planeTimer);
         }
 
-        function showPreviewPhoto(hex, photo) {
-            if (previewHex !== hex) return;   // closed, or another plane was opened
-            const img = document.getElementById('pp-img');
-            const msg = document.getElementById('pp-msg');
+        // The lines under the photo. Called again on every refresh so the numbers stay live.
+        function renderPlaneText(ac) {
+            pv('pv-callsign').textContent = ac.callsign || '';
+            const reg = ac.registration && ac.registration !== ac.callsign ? ac.registration : '';
+            pv('pv-sub').textContent = [ac.airline, ac.aircraft_type || ac.typecode, reg].filter(Boolean).join(' · ');
+            const stats = [];
+            if (typeof ac.altitude_baro === 'number') stats.push(`${formatAlt(ac.altitude_baro)} ft ${ac.vertical_icon || ''}`.trim());
+            else if (ac.altitude_baro === 'ground') stats.push('On the ground');
+            if (ac.ground_speed != null) stats.push(`${formatSpeed(ac.ground_speed)} kts`);
+            if (ac.distance_mi != null) stats.push(`${ac.distance_mi} mi ${ac.bearing_cardinal || ''}`.trim());
+            pv('pv-stats').textContent = stats.join(' · ');
+        }
+
+        function showPlaneDetails(hex, details) {
+            if (planeHex !== hex) return;   // closed, or another plane was opened
+            const route = details && details.route;
+            pv('pv-route').textContent = route && route.origin && route.destination
+                ? `${route.origin.code || '?'} → ${route.destination.code || '?'}` : '';
+            const photo = details && details.photo;
+            const img = pv('pv-img');
+            const msg = pv('pv-msg');
             if (!photo) {
                 img.hidden = true;
                 msg.textContent = 'No photo found for this aircraft';
                 return;
             }
-            img.onload = () => { if (previewHex === hex) { img.hidden = false; msg.textContent = ''; } };
-            img.onerror = () => { if (previewHex === hex) { img.hidden = true; msg.textContent = 'Photo could not be loaded'; } };
+            img.onload = () => { if (planeHex === hex) { img.hidden = false; msg.textContent = ''; } };
+            img.onerror = () => { if (planeHex === hex) { img.hidden = true; msg.textContent = 'Photo could not be loaded'; } };
             img.src = photo.src;
-            document.getElementById('pp-by').textContent = photo.by ? `© ${photo.by} · planespotters.net` : '';
+            // Credit as plain text. The photo is never a link, so a tap cannot leave the dashboard.
+            pv('pv-by').textContent = photo.by ? `© ${photo.by} · planespotters.net` : '';
         }
 
-        function openPhotoPreview(ac) {
+        function openPlaneView(ac) {
             const hex = String(ac.icao_hex || '').toLowerCase();
             if (!hex) return;
-            previewHex = hex;
-            const img = document.getElementById('pp-img');
+            planeHex = hex;
+            const img = pv('pv-img');
             img.hidden = true;
             img.removeAttribute('src');
-            document.getElementById('pp-msg').textContent = 'Loading photo...';
-            document.getElementById('pp-by').textContent = '';
-            const bits = [ac.callsign, ac.registration !== ac.callsign ? ac.registration : '', ac.aircraft_type || ac.typecode];
-            document.getElementById('pp-title').textContent = bits.filter(Boolean).join(' · ');
-            document.getElementById('photo-preview').hidden = false;
-            clearTimeout(previewTimer);
-            previewTimer = setTimeout(closePhotoPreview, PHOTO_PREVIEW_MS);
+            pv('pv-msg').textContent = 'Loading photo...';
+            pv('pv-by').textContent = '';
+            pv('pv-route').textContent = '';
+            pv('pv-map').href = '/map#' + hex;
+            renderPlaneText(ac);
+            pv('plane-view').hidden = false;
+            clearTimeout(planeTimer);
+            planeTimer = setTimeout(closePlaneView, PLANE_VIEW_MS);
 
-            if (photoCache.has(hex)) { showPreviewPhoto(hex, photoCache.get(hex)); return; }
-            fetch(`/api/flight/${hex}?` + new URLSearchParams({ callsign: ac.callsign || '' }))
+            const key = hex + '|' + (ac.callsign || '');
+            if (flightCache.has(key)) { showPlaneDetails(hex, flightCache.get(key)); return; }
+            // Position lets the server drop a route that does not fit where the plane is
+            const query = { callsign: ac.callsign || '' };
+            if (typeof ac.lat === 'number' && typeof ac.lon === 'number') { query.lat = ac.lat; query.lon = ac.lon; }
+            if (typeof ac.altitude_baro === 'number') query.alt = ac.altitude_baro;
+            fetch(`/api/flight/${hex}?` + new URLSearchParams(query))
                 .then(r => r.json())
-                .then(d => { photoCache.set(hex, d.photo || null); showPreviewPhoto(hex, d.photo || null); })
+                .then(d => { flightCache.set(key, d); showPlaneDetails(hex, d); })
                 .catch(() => {
-                    if (previewHex === hex) document.getElementById('pp-msg').textContent = 'Photo could not be loaded';
+                    if (planeHex === hex) pv('pv-msg').textContent = 'Photo could not be loaded';
                 });
         }
 
-        // The panel is redrawn every refresh, so listen on its container
-        document.getElementById('featured-content').addEventListener('click', (e) => {
-            if (!e.target.closest('.featured-callsign')) return;
+        // A row in All Contacts: make it the primary target and open its plane view
+        function openPlane(index) {
+            selectedIndex = index;
+            updateDisplay();
+            if (aircraftData[index]) openPlaneView(aircraftData[index]);
+        }
+
+        // The primary target panel is redrawn every refresh, so listen on its container
+        pv('featured-content').addEventListener('click', () => {
             const ac = aircraftData[selectedIndex] || aircraftData[0];
-            if (ac) openPhotoPreview(ac);
+            if (ac) openPlaneView(ac);
         });
-        document.getElementById('photo-preview').addEventListener('click', closePhotoPreview);
+        // MAP is a normal link to /map#hex. Any other tap closes the view.
+        pv('plane-view').addEventListener('click', (e) => {
+            if (!e.target.closest('#pv-map')) closePlaneView();
+        });
 
         function selectAircraft(index) {
             selectedIndex = index;
@@ -1257,6 +1350,12 @@
 
             // The map opens on the plane shown here
             document.getElementById('map-btn').href = featured ? '/map#' + featured.icao_hex.toLowerCase() : '/map';
+
+            // Keep an open plane view's numbers current
+            if (planeHex) {
+                const shown = aircraftData.find(ac => String(ac.icao_hex).toLowerCase() === planeHex);
+                if (shown) renderPlaneText(shown);
+            }
         }
 
         // RECEIVING until the decoder goes quiet or its data file stops updating
